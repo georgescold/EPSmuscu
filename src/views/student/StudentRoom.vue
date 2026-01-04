@@ -7,8 +7,10 @@
          <div class="bg-gray-100 p-1.5 rounded text-gray-600">
            <User :size="16" />
          </div>
-         <div class="flex flex-col">
-            <span class="font-bold text-gray-900 text-sm leading-tight">{{ studentInfo?.name }}</span>
+         <div class="flex flex-col min-w-0 max-w-[40vw]">
+            <span class="font-bold text-gray-900 text-xs md:text-sm leading-tight truncate block" :title="studentInfo?.name">
+              {{ studentInfo?.name }}
+            </span>
             <button @click="leaveSession" class="text-[10px] flex items-center text-red-500 hover:text-red-700 font-medium mt-0.5 hover:underline decoration-red-500/30 transition-all w-fit">
                <LogOut :size="10" class="mr-1" />
                Quitter
@@ -95,9 +97,9 @@
       
       <!-- Start Workshop Modal -->
      <div v-if="workshops.length > 0 && !startWorkshopId" class="fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-300">
-           <h2 class="text-2xl font-bold text-gray-900 mb-2 text-center">Départ 🏋️‍♂️</h2>
-           <p class="text-gray-500 text-center mb-6">À quel atelier votre groupe commence-t-il ?</p>
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-300 mx-4">
+           <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Départ 🏋️‍♂️</h2>
+           <p class="text-gray-500 text-center mb-6 text-sm md:text-base">À quel atelier votre groupe commence-t-il ?</p>
            
            <div class="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
               <button 
@@ -390,7 +392,7 @@
                            </select>
                      </div>
 
-                     <div v-if="roomConfig.notebook_visible_placement">
+                     <div v-if="roomConfig.notebook_visible_placement" class="col-span-2">
                         <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Placement</label>
                         <CounterInput 
                              v-model="getEntry(workshop.id).placement_errors"
@@ -398,7 +400,7 @@
                         />
                      </div>
 
-                     <div v-if="roomConfig.notebook_visible_tempo">
+                     <div v-if="roomConfig.notebook_visible_tempo" class="col-span-2">
                         <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Tempo</label>
                         <CounterInput 
                              v-model="getEntry(workshop.id).tempo_errors"
@@ -406,7 +408,7 @@
                         />
                      </div>
 
-                     <div v-if="roomConfig.notebook_visible_respiration">
+                     <div v-if="roomConfig.notebook_visible_respiration" class="col-span-2">
                         <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Respiration</label>
                         <CounterInput 
                              v-model="getEntry(workshop.id).respiration_errors"
@@ -559,7 +561,7 @@
     <!-- Muscle Sheet FAB -->
     <button 
       @click="showMuscleSheet = true"
-      class="fixed bottom-24 right-6 bg-white hover:bg-gray-50 text-white w-16 h-16 rounded-full shadow-2xl shadow-gray-400/50 transition-all hover:scale-110 active:scale-95 z-40 flex items-center justify-center border-4 border-white overflow-hidden"
+      class="fixed bottom-24 right-4 bg-white hover:bg-gray-50 text-white w-14 h-14 md:w-16 md:h-16 rounded-full shadow-2xl shadow-emerald-900/20 transition-all hover:scale-110 active:scale-95 z-40 flex items-center justify-center border-4 border-white overflow-hidden"
       title="Fiche Muscle"
     >
       <img src="/muscle-icon.png" alt="Muscles" class="w-full h-full object-cover" />
@@ -578,7 +580,31 @@
     </div>
 
 
+    <!-- Feedback Modal (Replaces Alert) -->
+    <div v-if="feedbackState.isVisible" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+       <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl transform transition-all scale-100 animate-in zoom-in-95 duration-200">
+          <div class="flex flex-col items-center text-center space-y-4">
+             <div class="p-4 rounded-full" :class="feedbackState.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'">
+                <Trophy v-if="feedbackState.type === 'success'" :size="32" />
+                <AlertTriangle v-else :size="32" />
+             </div>
+             
+             <div>
+                <h3 class="text-xl font-bold text-gray-900 mb-1">{{ feedbackState.title }}</h3>
+                <p class="text-gray-600 text-sm leading-relaxed">{{ feedbackState.message }}</p>
+             </div>
 
+             <button 
+               @click="feedbackState.isVisible = false"
+               class="w-full py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95"
+               :class="feedbackState.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'"
+             >
+               Continuer
+             </button>
+          </div>
+       </div>
+    </div>
+    
   </div>
 </template>
 
@@ -642,6 +668,7 @@ const timerState = ref({ state: 'idle', start_timestamp: null, paused_timestamp:
 const localTimerCalc = ref({})
 const startWorkshopId = ref(null)
 const playingVideoId = ref(null)
+const feedbackState = ref({ isVisible: false, title: '', message: '', type: 'success' })
 
 const orderedWorkshops = computed(() => {
   if (!startWorkshopId.value || workshops.value.length === 0) return []
@@ -794,10 +821,25 @@ const submitWorkshop = async (workshop) => {
       .update({ score: currentScore.value })
       .eq('id', studentInfo.value.id)
       
-     if (pointDelta > 0) alert(`Bravo ! Vous avez gagné ${pointDelta} points supplémentaires.`)
-     else alert(`Attention, votre nouveau score pour cet atelier est inférieur. (${pointDelta} pts)`)
+     if (pointDelta > 0) {
+        showFeedback('Bravo !', `Vous avez gagné ${pointDelta} points supplémentaires.`, 'success')
+     } else if (pointDelta < 0) {
+        showFeedback('Attention', `Votre nouveau score est inférieur (${pointDelta} pts).`, 'warning')
+     } else {
+        showFeedback('Mis à jour', 'Vos réponses ont été enregistrées (score inchangé).', 'success')
+     }
   } else {
-     alert("Réponses mises à jour (score inchangé).")
+     showFeedback('Mis à jour', 'Vos réponses ont été enregistrées (score inchangé).', 'success')
+  }
+
+  // Auto advance
+  currentWorkshopIndex.value++ 
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const showFeedback = (title, message, type = 'success') => {
+   feedbackState.value = { isVisible: true, title, message, type }
+}
   }
   
   solvedWorkshops.value.add(workshop.id)
