@@ -5,11 +5,11 @@
       <div class="flex justify-center mb-6">
         <Dumbbell :size="64" class="text-emerald-700 animate-pulse" />
       </div>
-      <h1 class="text-5xl font-black tracking-tighter text-gray-900 uppercase italic">
+      <h1 class="text-5xl font-black tracking-tighter text-gray-900 uppercase italic pr-2">
         Muscu <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-800">EPS</span>
       </h1>
       <p class="text-gray-600 text-lg max-w-md mx-auto">
-        Maîtrisez votre anatomie. Optimisez vos entraînements.
+        L'appli qui vous permettra d'aller à la salle en toute confiance
       </p>
     </div>
 
@@ -39,7 +39,7 @@
             <ShieldCheck :size="32" class="text-sky-700" />
           </div>
           <h2 class="text-2xl font-bold text-gray-900">Espace Prof</h2>
-          <p class="text-gray-500 text-sm">Gérer les salles, créer des exercices et piloter la séance.</p>
+          <p class="text-gray-500 text-sm">Uniquement réservé à Mr Coquelle</p>
           <span class="inline-flex items-center text-sky-700 font-bold text-sm mt-2 group-hover:translate-x-1 transition-transform">
             Connexion
             <ArrowRight :size="16" class="ml-1" />

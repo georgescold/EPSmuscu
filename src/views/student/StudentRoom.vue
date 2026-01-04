@@ -1,94 +1,72 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-20">
+  <div class="min-h-screen bg-gray-50 pb-48 md:pb-24">
     
     <!-- Top Bar -->
-    <header class="bg-white border-b border-gray-200 sticky top-0 z-40 px-4 py-3 flex justify-between items-center shadow-md shadow-gray-200/50">
-      <div class="flex items-center space-x-2">
-         <div class="bg-gray-100 p-1.5 rounded text-gray-600">
-           <User :size="16" />
-         </div>
-         <div class="flex flex-col min-w-0 max-w-[40vw]">
-            <span class="font-bold text-gray-900 text-xs md:text-sm leading-tight truncate block" :title="studentInfo?.name">
-              {{ studentInfo?.name }}
-            </span>
-            <button @click="leaveSession" class="text-[10px] flex items-center text-red-500 hover:text-red-700 font-medium mt-0.5 hover:underline decoration-red-500/30 transition-all w-fit">
-               <LogOut :size="10" class="mr-1" />
-               Quitter
-            </button>
-         </div>
-      </div>
-      
-      <div class="flex items-center space-x-2 md:space-x-4">
-        <!-- Global Timer -->
-        <div 
-          class="flex items-center space-x-2 md:space-x-3 rounded-xl px-2 py-1 md:px-4 md:py-2 border transition-all duration-500 shadow-sm"
-          :class="[
-            localTimerCalc.isFinished 
-               ? 'bg-red-500 border-red-600 shadow-red-500/30 text-white' 
-               : (!localTimerCalc.isRunning && !localTimerCalc.currentPhase 
-                  ? 'bg-white border-gray-200 shadow-gray-200/50' 
-                  : getTimerBgClass(localTimerCalc.currentPhase) + ' border-transparent shadow-lg'
-               )
-          ]"
-        >
-           <div class="relative">
-              <Clock :size="16" class="md:w-5 md:h-5 transition-transform duration-700" :class="[
-                 localTimerCalc.isFinished ? 'text-white' : (
-                    (!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'text-gray-400' : getTimerTextClass(localTimerCalc.currentPhase)
-                 ),
-                 localTimerCalc.isRunning ? 'animate-pulse' : ''
-              ]" />
-              <span v-if="localTimerCalc.isRunning" class="absolute top-0 right-0 w-1.5 h-1.5 md:w-2 md:h-2 bg-red-500 rounded-full border-2 border-white translate-x-1 -translate-y-1"></span>
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-40 px-3 py-2 md:py-3 shadow-md shadow-gray-200/50">
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        
+        <!-- Left: User Info -->
+        <div class="flex items-center space-x-2 min-w-0">
+           <div class="bg-gray-100 p-1.5 rounded text-gray-600 flex-shrink-0">
+             <User :size="16" />
            </div>
-           
-           <div class="flex flex-col leading-tight" v-if="!localTimerCalc.isFinished">
-              <span class="text-[8px] md:text-[10px] uppercase font-bold tracking-widest transition-colors" 
-                 :class="(!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'text-gray-400' : getTimerTextClass(localTimerCalc.currentPhase).replace('text-', 'text-opacity-70 text-')"
-              >
-                {{ !localTimerCalc.isRunning && !localTimerCalc.currentPhase ? 'Attente' : (localTimerCalc.currentPhase?.name || 'Prêt') }}
+           <div class="flex flex-col min-w-0">
+              <span class="font-bold text-gray-900 text-xs md:text-sm leading-tight truncate block max-w-[100px] md:max-w-[200px]" :title="studentInfo?.name">
+                {{ studentInfo?.name }}
               </span>
-              <span class="font-mono font-bold text-sm md:text-base tabular-nums transition-colors" 
-                 :class="(!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'text-gray-600 text-[10px] md:text-xs font-sans' : getTimerTextClass(localTimerCalc.currentPhase)"
-              >
-                {{ (!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'du prof...' : formatGlobalTime(localTimerCalc.remainingInPhase) }}
-              </span>
-           </div>
-           <span v-else class="font-bold text-sm md:text-lg uppercase tracking-widest animate-pulse">FIN</span>
-        </div>
-
-        <!-- Personal Timer -->
-        <!-- Timer -->
-        <div class="flex items-center space-x-2 bg-gray-100 rounded-full p-1 border border-gray-200">
-           <div class="px-2 md:px-3 flex items-center space-x-1 md:space-x-2">
-              <Timer :size="16" class="md:w-[18px] md:h-[18px] text-emerald-600" />
-              <span class="font-mono text-base md:text-xl font-bold text-gray-800 w-12 md:w-16 text-center">{{ formattedTime }}</span>
-           </div>
-           
-           <div class="flex space-x-1">
-              <button 
-                @click="toggleTimer" 
-                class="w-8 h-8 flex items-center justify-center rounded-full transition-all shadow-sm"
-                :class="timerRunning ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'"
-              >
-                <Pause v-if="timerRunning" :size="14" fill="currentColor" />
-                <Play v-else :size="14" fill="currentColor" class="ml-0.5" />
-              </button>
-
-              <button 
-                @click="resetTimer" 
-                class="w-8 h-8 flex items-center justify-center bg-gray-200 text-gray-500 rounded-full hover:bg-gray-300 hover:text-gray-700 transition-all"
-                title="Remettre à zéro"
-              >
-                <RotateCcw :size="14" />
+              <button @click="leaveSession" class="text-[10px] flex items-center text-red-500 hover:text-red-700 font-medium mt-0.5 hover:underline decoration-red-500/30 transition-all w-fit">
+                 <LogOut :size="10" class="mr-1" />
+                 Quitter
               </button>
            </div>
         </div>
-
-        <!-- Score -->
-        <div class="bg-emerald-700 rounded-full px-3 py-1 flex items-center space-x-1 shadow-lg shadow-emerald-700/20">
-           <Trophy :size="14" class="text-white" />
-           <span class="font-bold text-white">{{ currentScore }} pts</span>
+        
+        <!-- Center: Global Timer (Prominent) -->
+        <div class="flex justify-center">
+          <div 
+            class="flex items-center space-x-2 md:space-x-3 rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 border-2 transition-all duration-300 shadow-sm"
+            :class="[
+              localTimerCalc.isFinished 
+                 ? 'bg-red-500 border-red-600 shadow-red-500/30 text-white animate-pulse' 
+                 : (!localTimerCalc.isRunning && !localTimerCalc.currentPhase 
+                    ? 'bg-gray-50 border-gray-200 text-gray-400' 
+                    : getTimerBgClass(localTimerCalc.currentPhase) + ' border-white/20 shadow-lg scale-105'
+                 )
+            ]"
+          >
+             <div class="relative">
+                <Clock :size="20" class="md:w-6 md:h-6 transition-transform duration-700" :class="[
+                   localTimerCalc.isFinished ? 'text-white' : (
+                      (!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'text-gray-400' : getTimerTextClass(localTimerCalc.currentPhase)
+                   ),
+                   localTimerCalc.isRunning ? 'animate-pulse' : ''
+                ]" />
+             </div>
+             
+             <div class="flex flex-col items-center leading-none" v-if="!localTimerCalc.isFinished">
+                <span class="text-[9px] md:text-[11px] uppercase font-black tracking-widest mb-0.5" 
+                   :class="(!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'text-gray-400' : getTimerTextClass(localTimerCalc.currentPhase).replace('text-', 'text-opacity-80 text-')"
+                >
+                  {{ !localTimerCalc.isRunning && !localTimerCalc.currentPhase ? 'EN ATTENTE' : (localTimerCalc.currentPhase?.name || 'PRÊT') }}
+                </span>
+                <span class="font-mono font-bold text-xl md:text-2xl tabular-nums tracking-tight" 
+                   :class="(!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'text-gray-400 text-sm' : getTimerTextClass(localTimerCalc.currentPhase)"
+                >
+                  {{ (!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? '--:--' : formatGlobalTime(localTimerCalc.remainingInPhase) }}
+                </span>
+             </div>
+             <span v-else class="font-black text-lg md:text-2xl uppercase tracking-widest">FIN</span>
+          </div>
         </div>
+
+        <!-- Right: Score -->
+        <div class="flex justify-end min-w-0">
+          <div class="bg-emerald-700 rounded-full pl-2 pr-3 py-1 flex items-center space-x-1 shadow-lg shadow-emerald-700/20 whitespace-nowrap">
+             <Trophy :size="14" class="text-white flex-shrink-0" />
+             <span class="font-bold text-white text-xs md:text-sm">{{ currentScore }} pts</span>
+          </div>
+        </div>
+
       </div>
     </header>
 
@@ -564,6 +542,16 @@
     </div>
 
 
+    <!-- Timer FAB -->
+    <button 
+      @click="showTimerModal = true"
+      class="fixed bottom-48 right-4 bg-white hover:bg-gray-50 text-emerald-600 w-14 h-14 md:w-16 md:h-16 rounded-full shadow-2xl shadow-emerald-900/20 transition-all hover:scale-110 active:scale-95 z-40 flex items-center justify-center border-4 border-white overflow-hidden ring-1 ring-emerald-100"
+      title="Chronomètre"
+    >
+      <Timer :size="32" :stroke-width="2" />
+      <span v-if="timerRunning" class="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border border-white animate-pulse"></span>
+    </button>
+
     <!-- Muscle Sheet FAB -->
     <button 
       @click="showMuscleSheet = true"
@@ -572,6 +560,48 @@
     >
       <img src="/muscle-icon.png" alt="Muscles" class="w-full h-full object-cover" />
     </button>
+
+    <!-- Timer Modal / Popover -->
+    <div v-if="showTimerModal" class="fixed bottom-64 right-4 z-[60] animate-in slide-in-from-bottom-5 duration-200">
+       <div class="bg-white rounded-2xl p-6 shadow-2xl border border-gray-100 w-64 relative">
+          <button @click="showTimerModal = false" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 p-1">
+             <X :size="20" />
+          </button>
+          
+          <div class="flex flex-col items-center">
+             <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center">
+                Chronomètre
+             </h3>
+             
+             <!-- Time Display -->
+             <div class="text-4xl font-mono font-bold text-gray-900 mb-4 tabular-nums tracking-tighter">
+                {{ formattedTime }}
+             </div>
+
+             <!-- Controls -->
+             <div class="flex items-center space-x-3">
+                <!-- Play/Pause -->
+                <button 
+                   @click="toggleTimer"
+                   class="w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md active:scale-95"
+                   :class="timerRunning ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/30'"
+                >
+                   <Pause v-if="timerRunning" :size="24" fill="currentColor" />
+                   <Play v-else :size="28" fill="currentColor" class="ml-1" />
+                </button>
+
+                <!-- Reset -->
+                <button 
+                   @click="resetTimer"
+                   class="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-all active:scale-95"
+                   title="Remettre à zéro"
+                >
+                   <RotateCcw :size="18" />
+                </button>
+             </div>
+          </div>
+       </div>
+    </div>
 
     <!-- Muscle Sheet Modal -->
     <div v-if="showMuscleSheet" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click.self="showMuscleSheet = false">
@@ -647,6 +677,7 @@ const solvedWorkshops = ref(new Set())
 const workshopPoints = ref({})
 
 const currentScore = ref(0) 
+const showTimerModal = ref(false)
 const showMuscleSheet = ref(false)
 const openDropdown = ref(null)
 const activeTab = ref('workshops')
@@ -968,7 +999,15 @@ const subscribeToRoom = () => {
     .on(
       'postgres_changes', 
       { event: '*', schema: 'public', table: 'students', filter: `room_id=eq.${route.params.id}` }, 
-      () => fetchTakenWorkshops()
+      (payload) => {
+         // Auto-disconnect if my student entry is deleted (e.g. Reset Room)
+         if (payload.eventType === 'DELETE' && payload.old && payload.old.id === studentInfo.value?.id) {
+            alert("La session a été fermée par l'enseignant.")
+            leaveSession()
+            return
+         }
+         fetchTakenWorkshops()
+      }
     )
     .subscribe()
 }

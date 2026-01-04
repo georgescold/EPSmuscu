@@ -69,6 +69,15 @@
              <Copy v-else :size="16" />
            </button>
            <button 
+             @click="resetRoom(room.id)"
+             class="px-3 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-100 rounded-lg transition-colors"
+             title="Réinitialiser la leçon"
+             :disabled="resettingId === room.id"
+           >
+             <Loader2 v-if="resettingId === room.id" :size="16" class="animate-spin" />
+             <RotateCcw v-else :size="16" />
+           </button>
+           <button 
             @click="deleteRoom(room.id)"
             class="px-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-lg transition-colors"
             title="Supprimer la salle"
@@ -129,12 +138,13 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../../../supabase'
 
-import { Plus, LayoutDashboard, Loader2, Trash2, Clock, X, Copy } from 'lucide-vue-next'
+import { Plus, LayoutDashboard, Loader2, Trash2, Clock, X, Copy, RotateCcw } from 'lucide-vue-next'
 
 const rooms = ref([])
 const loading = ref(true)
 const creating = ref(false)
 const duplicatingId = ref(null)
+const resettingId = ref(null)
 const showCreateModal = ref(false)
 const newRoomName = ref('')
 const router = useRouter()
@@ -196,6 +206,32 @@ const deleteRoom = async (id) => {
   const { error } = await supabase.from('rooms').delete().eq('id', id)
   if (!error) {
     rooms.value = rooms.value.filter(r => r.id !== id)
+  }
+}
+
+const resetRoom = async (id) => {
+  if (!confirm('Réinitialiser cette leçon ?\n\nCela supprimera TOUS les élèves, scores et le carnet, mais gardera les ateliers configurés.\n\nCette action est irréversible.')) return
+
+  resettingId.value = id
+  try {
+     // 1. Reset Timer Status to Idle
+     const { error: timerError } = await supabase.from('rooms').update({ 
+         timer_status: { state: 'idle', start_timestamp: null, paused_timestamp: null, elapsed_before_pause: 0 } 
+     }).eq('id', id)
+   
+     if (timerError) throw timerError
+
+     // 2. Delete All Students (Cascades to Notebooks, Scores)
+     const { error: deleteError } = await supabase.from('students').delete().eq('room_id', id)
+
+     if (deleteError) throw deleteError
+
+     alert("Leçon réinitialisée avec succès. Prête pour une nouvelle classe.")
+  } catch (e) {
+     console.error("Reset error:", e)
+     alert("Erreur: " + e.message)
+  } finally {
+     resettingId.value = null
   }
 }
 

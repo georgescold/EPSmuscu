@@ -279,6 +279,7 @@
            <div class="flex justify-center items-center space-x-4 mt-8">
              <button 
                v-if="timerState.state !== 'running'"
+               type="button"
                @click="controlTimer('start')"
                class="bg-emerald-600 hover:bg-emerald-500 text-white w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-emerald-900/50"
              >
@@ -286,6 +287,7 @@
              </button>
              <button 
                v-else
+               type="button"
                @click="controlTimer('pause')"
                class="bg-amber-600 hover:bg-amber-500 text-white w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-amber-900/50"
              >
@@ -293,11 +295,13 @@
              </button>
 
              <button 
+               type="button"
                @click="controlTimer('stop')"
                class="bg-gray-700 hover:bg-gray-600 text-white w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95"
                title="Arrêter et Réinitialiser"
              >
                 <Square :size="20" />
+
              </button>
            </div>
         </div>
@@ -735,18 +739,25 @@ const controlTimer = async (action) => {
         newState.elapsed_before_pause = now - newState.start_timestamp
      }
   } else if (action === 'stop') {
-     newState = { state: 'idle', start_timestamp: null, paused_timestamp: null, elapsed_before_pause: 0 }
+     // Force full reset
+     newState = { 
+        state: 'idle', 
+        start_timestamp: null, 
+        paused_timestamp: null, 
+        elapsed_before_pause: 0 
+     }
   }
 
-  // Optimistic update
-  timerState.value = newState
+  // Optimistic update - Force new object reference
+  timerState.value = { ...newState }
   
   // Save to DB
   const { error } = await supabase.from('rooms').update({ timer_status: newState }).eq('id', roomId)
   
   if (error) {
      console.error("Timer update error:", error)
-     alert("Erreur maj chrono: " + error.message)
+     // Revert on error? Or just alert
+     // alert("Erreur maj chrono: " + error.message)
   }
 }
 
