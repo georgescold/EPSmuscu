@@ -693,7 +693,12 @@ const currentScore = ref(0)
 const showTimerModal = ref(false)
 const showMuscleSheet = ref(false)
 const openDropdown = ref(null)
-const activeTab = ref('workshops')
+const storedTab = localStorage.getItem(`student_tab_${route.params.id}`)
+const activeTab = ref(storedTab || 'workshops')
+
+watch(activeTab, (val) => {
+  localStorage.setItem(`student_tab_${route.params.id}`, val)
+})
 
 const roomConfig = ref({})
 const notebookEntries = ref({})
@@ -709,7 +714,13 @@ const groupMembers = computed(() => {
      return []
   }
 })
-const activePerformer = ref('') // The member tab currently selected
+
+const storedPerformer = localStorage.getItem(`student_performer_${route.params.id}`)
+const activePerformer = ref(storedPerformer || '') // The member tab currently selected
+
+watch(activePerformer, (val) => {
+  if (val) localStorage.setItem(`student_performer_${route.params.id}`, val)
+})
 
 // Timer Logic
 const time = ref(0)
@@ -836,7 +847,37 @@ const isComplete = (workshopId) => {
 }
 
 // Validation Logic
+const validateNotebook = (workshopId) => {
+  const entry = getEntry(workshopId)
+  if (!entry) return false
+
+  // 1. Check Level (if globally enabled)
+  if (roomConfig.value?.notebook_visible_level !== false && !entry.level_selected) {
+    showFeedback('Incomplet', 'Veuillez sélectionner un niveau.', 'warning')
+    return false
+  }
+
+  // 2. Check Placement (if workshop enabled)
+  const workshop = workshops.value.find(w => w.id === workshopId)
+  if (workshop?.show_placement && (entry.placement_errors === undefined || entry.placement_errors === null)) {
+     showFeedback('Incomplet', 'Veuillez remplir le placement.', 'warning')
+     return false
+  }
+
+  // 3. Check Feeling (always required if visible logic exists? usually yes)
+  // Assuming Feeling is always part of the notebook flow
+  if (roomConfig.value?.notebook_visible_feeling !== false && !entry.feeling) {
+     showFeedback('Incomplet', 'Veuillez indiquer votre ressenti.', 'warning')
+     return false
+  }
+
+  return true
+}
+
 const submitWorkshop = async (workshop) => {
+  // Enforce notebook validation
+  if (!validateNotebook(workshop.id)) return
+
   // if (!confirm('Confirmer vos réponses ? Vous ne pourrez plus modifier.')) return
 
   const userRes = answers.value[workshop.id]
@@ -1103,6 +1144,20 @@ watch(activePerformer, async (newVal) => {
   }
 })
 
+  if (newVal) {
+      selectedCoach.value = newVal
+  }
+})
+
+const syncTimer = (room) => {
+   if (!room) return
+   if (room.timer_config) timerConfig.value = room.timer_config
+   if (room.timer_status) {
+      timerState.value = room.timer_status
+      localTimerCalc.value = calculateTimerState(timerConfig.value, timerState.value)
+   }
+}
+
 onMounted(async () => {
   const roomId = route.params.id
   window.addEventListener('beforeunload', handleBeforeUnload)
@@ -1179,13 +1234,23 @@ onMounted(async () => {
   }, 1000)
 
   syncPollingInterval = setInterval(async () => {
+     // 1. Sync Room Data
      const { data } = await supabase.from('rooms').select('*').eq('id', roomId).single()
      if (data) {
         syncTimer(data)
-        // Keep config in sync
         roomConfig.value = { ...roomConfig.value, ...data }
      }
-  }, 10000) 
+
+     // 2. Check Existence (Handle Reset/Kick)
+     if (studentInfo.value?.id) {
+        const { data: me, error } = await supabase.from('students').select('id').eq('id', studentInfo.value.id).single()
+        if (error || !me) {
+           console.log("Student entry missing, force leaving session...")
+           clearInterval(syncPollingInterval)
+           leaveSession()
+        }
+     }
+  }, 5000) // Changed to 5s for faster reaction 
 })
 
 onBeforeUnmount(() => {
