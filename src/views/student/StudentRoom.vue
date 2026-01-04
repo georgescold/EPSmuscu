@@ -949,8 +949,6 @@ const fetchNotebookEntries = async () => {
   }
 }
 
-const takenWorkshopIds = ref(new Set())
-
 const fetchTakenWorkshops = async () => {
   const { data, error } = await supabase
     .from('students')
