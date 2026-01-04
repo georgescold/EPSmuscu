@@ -838,6 +838,8 @@ const submitWorkshop = async (workshop) => {
   } else {
      showFeedback('Mis à jour', 'Vos réponses ont été enregistrées (score inchangé).', 'success')
   }
+  
+  solvedWorkshops.value.add(workshop.id)
 
   // Auto advance
   currentWorkshopIndex.value++ 
@@ -846,13 +848,6 @@ const submitWorkshop = async (workshop) => {
 
 const showFeedback = (title, message, type = 'success') => {
    feedbackState.value = { isVisible: true, title, message, type }
-}
-  }
-  
-  solvedWorkshops.value.add(workshop.id)
-  
-  // Advance to next workshop
-  currentWorkshopIndex.value++
 }
 
 const isYoutube = (url) => {
