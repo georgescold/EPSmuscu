@@ -2,7 +2,16 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useStudentStore = defineStore('student', () => {
-    const studentInfo = ref(JSON.parse(localStorage.getItem('studentInfo')))
+    const studentInfo = ref(null)
+    try {
+        const stored = localStorage.getItem('studentInfo')
+        if (stored && stored !== 'undefined') {
+            studentInfo.value = JSON.parse(stored)
+        }
+    } catch (e) {
+        console.error('Error parsing studentInfo:', e)
+        localStorage.removeItem('studentInfo')
+    }
 
     function login(info) {
         studentInfo.value = info
