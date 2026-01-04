@@ -764,11 +764,18 @@ const orderedWorkshops = computed(() => {
   return [ordered[index]]
 })
 
-const currentWorkshopIndex = ref(0) // Tracks local progress in the loop
+const storedIndex = localStorage.getItem(`student_workshop_index_${route.params.id}`)
+const currentWorkshopIndex = ref(storedIndex ? parseInt(storedIndex) : 0) // Tracks local progress in the loop
 
+watch(currentWorkshopIndex, (val) => {
+  localStorage.setItem(`student_workshop_index_${route.params.id}`, val)
+})
 
 const setStartWorkshop = async (wId) => {
    startWorkshopId.value = wId
+   // Reset index when changing start point? Or keep?
+   // Usually start point change implies reset.
+   currentWorkshopIndex.value = 0 
    // Save to DB
    await supabase.from('students').update({ start_workshop_id: wId }).eq('id', studentInfo.value.id)
 }
