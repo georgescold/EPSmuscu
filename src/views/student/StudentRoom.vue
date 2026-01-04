@@ -332,7 +332,7 @@
          <!-- Coach Select -->
          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <label class="block text-sm font-bold text-gray-700 mb-2">Coach pour {{ activePerformer }} :</label>
-            <select v-model="selectedCoach" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <select v-model="selectedCoach" @change="saveCoachSelection" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                <option value="" disabled>Sélectionner un coach...</option>
                <option 
                  v-for="m in groupMembers.filter(n => n !== activePerformer)" 
@@ -988,14 +988,31 @@ const fetchNotebookEntries = async () => {
     .eq('room_id', route.params.id)
     .eq('performer_name', activePerformer.value)
   
-  if (entries) {
+  if (entries && entries.length > 0) {
     entries.forEach(e => {
-       notebookEntries.value[e.workshop_id] = e
+       if (notebookEntries.value) notebookEntries.value[e.workshop_id] = e
        if (e.coach_name) selectedCoach.value = e.coach_name
     })
   } else {
-     selectedCoach.value = ''
+     // Fallback to local storage if no DB entries yet
+     const savedCoach = localStorage.getItem(`coach_${studentInfo.value.id}_${activePerformer.value}`)
+     selectedCoach.value = savedCoach || ''
   }
+}
+
+const saveCoachSelection = async () => {
+   if (!activePerformer.value) return
+   
+   // 1. Save locally
+   localStorage.setItem(`coach_${studentInfo.value.id}_${activePerformer.value}`, selectedCoach.value)
+   
+   // 2. Update existing entries in DB (so they reflect the new coach)
+   await supabase
+      .from('notebook_entries')
+      .update({ coach_name: selectedCoach.value })
+      .eq('student_id', studentInfo.value.id)
+      .eq('room_id', route.params.id)
+      .eq('performer_name', activePerformer.value)
 }
 
 const fetchTakenWorkshops = async () => {
