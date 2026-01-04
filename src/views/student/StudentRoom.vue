@@ -980,9 +980,50 @@ const subscribeToRoom = () => {
     .subscribe()
 }
 
+const handleBeforeUnload = (e) => {
+  e.preventDefault()
+  e.returnValue = ''
+}
+
+const leaveSession = () => {
+  if (!confirm("Voulez-vous vraiment quitter ? Votre score sera perdu.")) return
+  sessionStorage.removeItem('student')
+  router.push('/')
+}
+
+watch(activePerformer, async (newVal) => {
+  if (newVal) {
+     // Assuming fetchNotebookEntries is defined above line 957
+     // If not, we might need to redefine it, but based on view_file it should be there.
+     // However, to be safe, I'll ensure we call it if it exists.
+     try {
+       // We can iterate notebookEntries if needed or just rely on existing logic
+        const { data: entries } = await supabase
+        .from('notebook_entries')
+        .select('*')
+        .eq('student_id', studentInfo.value.id)
+        .eq('room_id', route.params.id)
+        .eq('performer_name', newVal)
+      
+      if (entries) {
+        entries.forEach(e => {
+           if (notebookEntries.value) notebookEntries.value[e.workshop_id] = e
+           if (e.coach_name) selectedCoach.value = e.coach_name
+        })
+      }
+     } catch (e) { console.error(e) }
+  }
+})
+
 onMounted(async () => {
   const roomId = route.params.id
+  window.addEventListener('beforeunload', handleBeforeUnload)
   
+  // Set initial Performer
+  if (groupMembers.value.length > 0 && !activePerformer.value) {
+     activePerformer.value = groupMembers.value[0]
+  }
+
   await Promise.all([
     fetchWorkshops(),
     fetchTakenWorkshops()
@@ -1037,61 +1078,11 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
   if (globalTimerInterval) clearInterval(globalTimerInterval)
   if (syncPollingInterval) clearInterval(syncPollingInterval)
   if (timerInterval.value) clearInterval(timerInterval.value)
   supabase.removeAllChannels()
 })
 </script>
-
-  // 2. Fetch Other Groups (Removed as requested)
-  // const { data: studentsData } = await supabase.from('students').select('id, name').eq('room_id', route.params.id).neq('id', studentInfo.value.id)
-  // if (studentsData) otherStudents.value = studentsData
-
-  // 3. Set initial Performer
-  if (groupMembers.value.length > 0 && !activePerformer.value) {
-     activePerformer.value = groupMembers.value[0]
-  }
-  
-  // 4. Fetch Entries
-  await fetchNotebookEntries()
-}
-
-watch(activePerformer, async (newVal) => {
-  if (newVal) {
-     await fetchNotebookEntries()
-  }
-})
-
-const handleBeforeUnload = (e) => {
-  e.preventDefault()
-  e.returnValue = ''
-}
-
-const leaveSession = () => {
-  if (!confirm("Voulez-vous vraiment quitter ? Votre score sera perdu.")) return
-  sessionStorage.removeItem('student')
-  router.push('/')
-}
-
-onMounted(() => {
-  fetchWorkshops()
-  fetchNotebookData()
-  window.addEventListener('beforeunload', handleBeforeUnload)
-  
-   // Local Loop for UI update
-   globalTimerInterval = setInterval(() => {
-     try {
-       localTimerCalc.value = calculateTimerState(timerConfig.value, timerState.value) || {}
-     } catch (e) {
-       console.error("Timer Calc Error:", e)
-       localTimerCalc.value = { isRunning: false, error: e.message }
-     }
-   }, 100)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('beforeunload', handleBeforeUnload)
-  clearInterval(timerInterval)
-})
-</script>
+```
