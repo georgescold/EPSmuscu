@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-48 md:pb-24">
+  <div v-if="studentInfo" class="min-h-screen bg-gray-50 pb-48 md:pb-24">
     
     <!-- Top Bar -->
     <header class="bg-white border-b border-gray-200 sticky top-0 z-40 px-3 py-2 md:py-3 shadow-md shadow-gray-200/50">
@@ -646,7 +646,12 @@
           </div>
        </div>
     </div>
-    
+  </div>
+  <div v-else class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="flex flex-col items-center">
+       <Loader2 class="animate-spin text-emerald-600 mb-4" :size="48" />
+       <p class="text-gray-500 font-medium">Chargement de la session...</p>
+    </div>
   </div>
 </template>
 
@@ -665,8 +670,10 @@ const router = useRouter()
 const studentStore = useStudentStore()
 const studentInfo = computed(() => studentStore.studentInfo)
 
+// Redirect if missing
 if (!studentInfo.value) {
-  router.push('/student/join')
+  // Use window.location for hard redirect to ensure clean state
+  window.location.href = '/student/join'
 }
 
 const workshops = ref([])
@@ -696,7 +703,11 @@ const selectedCoach = ref('')
 // Group Logic
 const groupMembers = computed(() => {
   if (!studentInfo.value?.name) return []
-  return studentInfo.value.name.split(' & ').map(s => s.trim())
+  try {
+     return studentInfo.value.name.split(' & ').map(s => s.trim())
+  } catch (e) {
+     return []
+  }
 })
 const activePerformer = ref('') // The member tab currently selected
 
@@ -988,6 +999,9 @@ const fetchNotebookEntries = async () => {
     .eq('room_id', route.params.id)
     .eq('performer_name', activePerformer.value)
   
+  // Explicitly reset selectedCoach before populating (crucial for tab switching)
+  selectedCoach.value = ''
+
   if (entries && entries.length > 0) {
     entries.forEach(e => {
        if (notebookEntries.value) notebookEntries.value[e.workshop_id] = e
