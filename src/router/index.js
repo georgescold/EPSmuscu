@@ -42,7 +42,7 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
     if (to.meta.requiresAuth) {
-        const isAuthenticated = sessionStorage.getItem('isTeacherAuthenticated') === 'true'
+        const isAuthenticated = localStorage.getItem('isTeacherAuthenticated') === 'true'
         if (!isAuthenticated) {
             next('/teacher/login')
         } else {
