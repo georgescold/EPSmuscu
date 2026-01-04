@@ -1012,14 +1012,38 @@ onMounted(async () => {
   const roomId = route.params.id
   window.addEventListener('beforeunload', handleBeforeUnload)
   
-  // Set initial Performer
   if (groupMembers.value.length > 0 && !activePerformer.value) {
      activePerformer.value = groupMembers.value[0]
   }
 
+  // Define fetchRoomData wrapper
+  const fetchRoomData = async () => {
+     try {
+       const { data, error } = await supabase.from('rooms').select('*').eq('id', roomId).single()
+       if (data) {
+          syncTimer(data)
+          roomConfig.value = data
+       }
+       if (error) console.error("Error fetching room config:", error)
+     } catch (e) {
+       console.error("Exception fetching room config:", e)
+     }
+  }
+
+  // Define safe fetchTakenWorkshops wrapper
+  const safeFetchTakenWorkshops = async () => {
+     try {
+        await fetchTakenWorkshops()
+     } catch (e) {
+        console.error("Error fetching taken workshops (feature might be disabled/db missing column):", e)
+     }
+  }
+
+  // Execute in parallel
   await Promise.all([
     fetchWorkshops(),
-    fetchTakenWorkshops()
+    safeFetchTakenWorkshops(),
+    fetchRoomData() // Fetch config immediately
   ])
 
   // Timer Subscription
@@ -1031,6 +1055,8 @@ onMounted(async () => {
       (payload) => {
         if (payload.new) {
           syncTimer(payload.new)
+          // Also update config on change
+          roomConfig.value = { ...roomConfig.value, ...payload.new }
         }
       }
     )
@@ -1038,13 +1064,6 @@ onMounted(async () => {
 
   // Locks Subscription
   subscribeToRoom()
-
-  // Initial Room Data (Timer & Config)
-  const { data: roomData } = await supabase.from('rooms').select('*').eq('id', roomId).single()
-  if (roomData) {
-     syncTimer(roomData)
-     roomConfig.value = roomData
-  }
 
   // Fetch My Start Workshop
   if (studentInfo.value?.id) {
@@ -1066,7 +1085,11 @@ onMounted(async () => {
 
   syncPollingInterval = setInterval(async () => {
      const { data } = await supabase.from('rooms').select('*').eq('id', roomId).single()
-     if (data) syncTimer(data)
+     if (data) {
+        syncTimer(data)
+        // Keep config in sync
+        roomConfig.value = { ...roomConfig.value, ...data }
+     }
   }, 10000) 
 })
 
