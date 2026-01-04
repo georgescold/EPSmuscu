@@ -1073,26 +1073,33 @@ const leaveSession = () => {
 }
 
 watch(activePerformer, async (newVal) => {
-  if (newVal) {
-     // Assuming fetchNotebookEntries is defined above line 957
-     // If not, we might need to redefine it, but based on view_file it should be there.
-     // However, to be safe, I'll ensure we call it if it exists.
-     try {
-       // We can iterate notebookEntries if needed or just rely on existing logic
-        const { data: entries } = await supabase
-        .from('notebook_entries')
-        .select('*')
-        .eq('student_id', studentInfo.value.id)
-        .eq('room_id', route.params.id)
-        .eq('performer_name', newVal)
-      
-      if (entries) {
-        entries.forEach(e => {
-           if (notebookEntries.value) notebookEntries.value[e.workshop_id] = e
-           if (e.coach_name) selectedCoach.value = e.coach_name
-        })
-      }
-     } catch (e) { console.error(e) }
+  if (!newVal || !studentInfo.value?.id) return
+  
+  // 1. Reset state for new performer
+  selectedCoach.value = ''
+  notebookEntries.value = {}
+  
+  // 2. Load from DB
+  try {
+    const { data: entries } = await supabase
+      .from('notebook_entries')
+      .select('*')
+      .eq('student_id', studentInfo.value.id)
+      .eq('room_id', route.params.id)
+      .eq('performer_name', newVal)
+    
+    if (entries && entries.length > 0) {
+      entries.forEach(e => {
+        notebookEntries.value[e.workshop_id] = e
+        if (e.coach_name) selectedCoach.value = e.coach_name
+      })
+    } else {
+      // 3. Fallback to localStorage if no DB entries
+      const savedCoach = localStorage.getItem(`coach_${studentInfo.value.id}_${newVal}`)
+      selectedCoach.value = savedCoach || ''
+    }
+  } catch (e) { 
+    console.error('Error loading notebook for performer:', e) 
   }
 })
 
