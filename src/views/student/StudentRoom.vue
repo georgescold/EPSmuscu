@@ -361,46 +361,46 @@
                      <h4 class="font-bold text-gray-900 leading-tight">{{ workshop.exercises?.name }}</h4>
                   </div>
 
-                  <div class="grid grid-cols-2 gap-3 text-sm">
-                     <div v-if="roomConfig.notebook_visible_level" class="col-span-2">
-                        <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Niveau</label>
+                     <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div v-if="roomConfig?.notebook_visible_level !== false" class="col-span-2">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Niveau</label>
                            <select 
                              v-model="getEntry(workshop.id).level_selected" 
                              @change="updateEntry(workshop.id)"
-                             class="w-full text-sm bg-white border border-gray-300 rounded-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500"
+                             class="w-full text-sm bg-white border border-gray-300 rounded-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-bold text-gray-800"
                            >
-                              <option value="">--</option>
+                              <option value="">-- Choisir --</option>
                               <option value="Niveau 1">Niveau 1</option>
                               <option value="Niveau 2">Niveau 2</option>
                               <option value="Niveau 3">Niveau 3</option>
                            </select>
-                     </div>
+                        </div>
 
-                     <div v-if="roomConfig.notebook_visible_placement" class="col-span-2">
-                        <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Placement</label>
-                        <CounterInput 
+                        <div v-if="workshop.show_placement">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Placement</label>
+                           <CounterInput 
                              v-model="getEntry(workshop.id).placement_errors"
                              @update:modelValue="updateEntry(workshop.id)" 
-                        />
-                     </div>
+                           />
+                        </div>
 
-                     <div v-if="roomConfig.notebook_visible_tempo" class="col-span-2">
-                        <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Tempo</label>
-                        <CounterInput 
+                        <div v-if="workshop.show_tempo">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Tempo</label>
+                           <CounterInput 
                              v-model="getEntry(workshop.id).tempo_errors"
                              @update:modelValue="updateEntry(workshop.id)" 
-                        />
-                     </div>
+                           />
+                        </div>
 
-                     <div v-if="roomConfig.notebook_visible_respiration" class="col-span-2">
-                        <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Respiration</label>
-                        <CounterInput 
+                        <div v-if="workshop.show_respiration">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Respiration</label>
+                           <CounterInput 
                              v-model="getEntry(workshop.id).respiration_errors"
                              @update:modelValue="updateEntry(workshop.id)" 
-                        />
-                     </div>
+                           />
+                        </div>
 
-                     <div v-if="roomConfig.notebook_visible_feeling" class="col-span-2">
+                     <div v-if="roomConfig?.notebook_visible_feeling !== false" class="col-span-2">
                         <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Ressentis</label>
                            <select 
                              v-model="getEntry(workshop.id).feeling" 
@@ -429,11 +429,11 @@
                   <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
                      <tr>
                         <th class="px-4 py-3 min-w-[120px]">Atelier</th>
-                        <th v-if="roomConfig.notebook_visible_level" class="px-2 py-3 min-w-[100px] text-center">Niveau</th>
-                        <th v-if="roomConfig.notebook_visible_placement" class="px-2 py-3 min-w-[100px] text-center">Placement</th>
-                        <th v-if="roomConfig.notebook_visible_tempo" class="px-2 py-3 min-w-[100px] text-center">Tempo</th>
-                        <th v-if="roomConfig.notebook_visible_respiration" class="px-2 py-3 min-w-[100px] text-center">Respiration</th>
-                        <th v-if="roomConfig.notebook_visible_feeling" class="px-2 py-3 min-w-[120px] text-center">Ressentis</th>
+                        <th v-if="roomConfig?.notebook_visible_level !== false" class="px-2 py-3 min-w-[100px] text-center">Niveau</th>
+                        <th v-if="hasPlacement" class="px-2 py-3 min-w-[100px] text-center">Placement</th>
+                        <th v-if="hasTempo" class="px-2 py-3 min-w-[100px] text-center">Tempo</th>
+                        <th v-if="hasRespiration" class="px-2 py-3 min-w-[100px] text-center">Respiration</th>
+                        <th v-if="roomConfig?.notebook_visible_feeling !== false" class="px-2 py-3 min-w-[120px] text-center">Ressentis</th>
                      </tr>
                   </thead>
                   <tbody>
@@ -449,7 +449,7 @@
                         </td>
 
                         <!-- Level -->
-                        <td v-if="roomConfig.notebook_visible_level" class="px-2 py-3 text-center">
+                        <td v-if="roomConfig?.notebook_visible_level !== false" class="px-2 py-3 text-center">
                            <select 
                              v-model="getEntry(workshop.id).level_selected" 
                              @change="updateEntry(workshop.id)"
@@ -463,34 +463,40 @@
                         </td>
 
                         <!-- Placement -->
-                        <!-- Placement -->
-                        <td v-if="roomConfig.notebook_visible_placement" class="px-2 py-3">
-                           <CounterInput 
-                             v-model="getEntry(workshop.id).placement_errors"
-                             @update:modelValue="updateEntry(workshop.id)" 
-                           />
+                        <td v-if="hasPlacement" class="px-2 py-3">
+                           <div v-if="workshop.show_placement">
+                              <CounterInput 
+                                v-model="getEntry(workshop.id).placement_errors"
+                                @update:modelValue="updateEntry(workshop.id)" 
+                              />
+                           </div>
+                           <div v-else class="text-center text-gray-300">-</div>
                         </td>
 
                         <!-- Tempo -->
-                        <!-- Tempo -->
-                        <td v-if="roomConfig.notebook_visible_tempo" class="px-2 py-3">
-                           <CounterInput 
-                             v-model="getEntry(workshop.id).tempo_errors"
-                             @update:modelValue="updateEntry(workshop.id)" 
-                           />
+                        <td v-if="hasTempo" class="px-2 py-3">
+                           <div v-if="workshop.show_tempo">
+                              <CounterInput 
+                                v-model="getEntry(workshop.id).tempo_errors"
+                                @update:modelValue="updateEntry(workshop.id)" 
+                              />
+                           </div>
+                           <div v-else class="text-center text-gray-300">-</div>
                         </td>
 
                         <!-- Respiration -->
-                        <!-- Respiration -->
-                        <td v-if="roomConfig.notebook_visible_respiration" class="px-2 py-3">
-                           <CounterInput 
-                             v-model="getEntry(workshop.id).respiration_errors"
-                             @update:modelValue="updateEntry(workshop.id)" 
-                           />
+                        <td v-if="hasRespiration" class="px-2 py-3">
+                           <div v-if="workshop.show_respiration">
+                              <CounterInput 
+                                v-model="getEntry(workshop.id).respiration_errors"
+                                @update:modelValue="updateEntry(workshop.id)" 
+                              />
+                           </div>
+                           <div v-else class="text-center text-gray-300">-</div>
                         </td>
 
                         <!-- Ressentis (RPE) -->
-                        <td v-if="roomConfig.notebook_visible_feeling" class="px-2 py-3">
+                        <td v-if="roomConfig?.notebook_visible_feeling !== false" class="px-2 py-3">
                            <select 
                              v-model="getEntry(workshop.id).feeling" 
                              @change="updateEntry(workshop.id)"
@@ -707,6 +713,18 @@ const startWorkshopId = ref(null)
 const playingVideoId = ref(null)
 const feedbackState = ref({ isVisible: false, title: '', message: '', type: 'success' })
 const takenWorkshopIds = ref(new Set())
+
+const hasPlacement = computed(() => {
+   return orderedWorkshops.value.some(w => w.show_placement)
+})
+
+const hasTempo = computed(() => {
+   return orderedWorkshops.value.some(w => w.show_tempo)
+})
+
+const hasRespiration = computed(() => {
+   return orderedWorkshops.value.some(w => w.show_respiration)
+})
 
 const orderedWorkshops = computed(() => {
   if (!startWorkshopId.value || workshops.value.length === 0) return []
@@ -956,7 +974,7 @@ const updateEntry = async (workshopId) => {
 }
 
 const fetchNotebookEntries = async () => {
-  if (!activePerformer.value) return 
+  if (!activePerformer.value || !studentInfo.value?.id) return 
   
   // Clear entries locally
   // Note: ideally we might want to cache per performer but simpler to refetch/clear for now
@@ -1140,4 +1158,3 @@ onBeforeUnmount(() => {
   supabase.removeAllChannels()
 })
 </script>
-```
