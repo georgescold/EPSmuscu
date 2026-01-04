@@ -1144,10 +1144,7 @@ watch(activePerformer, async (newVal) => {
   }
 })
 
-  if (newVal) {
-      selectedCoach.value = newVal
-  }
-})
+
 
 const syncTimer = (room) => {
    if (!room) return
