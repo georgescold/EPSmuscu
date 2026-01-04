@@ -105,9 +105,15 @@
               <button 
                 v-for="(w, idx) in workshops" 
                 :key="w.id"
-                @click="setStartWorkshop(w.id)"
-                class="w-full bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-500 rounded-xl p-4 flex items-center transition-all group text-left"
+                @click="!takenWorkshopIds.has(w.id) && setStartWorkshop(w.id)"
+                :disabled="takenWorkshopIds.has(w.id)"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center transition-all group text-left relative overflow-hidden"
+                :class="takenWorkshopIds.has(w.id) ? 'opacity-50 cursor-not-allowed bg-gray-100 grayscale' : 'hover:bg-emerald-50 hover:border-emerald-500'"
               >
+                 <div class="absolute inset-0 bg-gray-200/50 backdrop-blur-[1px] z-10 flex items-center justify-center font-bold text-gray-500 uppercase tracking-widest -rotate-12 border-2 border-gray-300 rounded-xl m-2" v-if="takenWorkshopIds.has(w.id)">
+                    Déjà choisi
+                 </div>
+
                  <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg mr-4 border border-emerald-200 group-hover:scale-110 transition-transform">
                     {{ idx + 1 }}
                  </div>
@@ -669,6 +675,7 @@ const localTimerCalc = ref({})
 const startWorkshopId = ref(null)
 const playingVideoId = ref(null)
 const feedbackState = ref({ isVisible: false, title: '', message: '', type: 'success' })
+const takenWorkshopIds = ref(new Set())
 
 const orderedWorkshops = computed(() => {
   if (!startWorkshopId.value || workshops.value.length === 0) return []
@@ -947,45 +954,95 @@ const fetchNotebookEntries = async () => {
   }
 }
 
-const fetchNotebookData = async () => {
+const takenWorkshopIds = ref(new Set())
+
+const fetchTakenWorkshops = async () => {
+  const { data, error } = await supabase
+    .from('students')
+    .select('start_workshop_id')
+    .eq('room_id', route.params.id)
+    .not('start_workshop_id', 'is', null)
+
+  if (data) {
+    const taken = data.map(s => s.start_workshop_id)
+    takenWorkshopIds.value = new Set(taken)
+  }
+}
+
+const subscribeToRoom = () => {
+  supabase
+    .channel(`room-locks-${route.params.id}`)
+    .on(
+      'postgres_changes', 
+      { event: '*', schema: 'public', table: 'students', filter: `room_id=eq.${route.params.id}` }, 
+      () => fetchTakenWorkshops()
+    )
+    .subscribe()
+}
+
+onMounted(async () => {
   const roomId = route.params.id
+  
+  await Promise.all([
+    fetchWorkshops(),
+    fetchTakenWorkshops()
+  ])
 
-  // Realtime subscription for Global Timer
-  console.log("Subscribing to room channel:", roomId)
-  const channel = supabase.channel(`student_room_timer_${roomId}`)
-   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, (payload) => {
-      console.log("Realtime update received:", payload)
-      if (payload.new.timer_status) timerState.value = payload.new.timer_status
-      if (payload.new.timer_config) timerConfig.value = payload.new.timer_config
-   })
-   .subscribe((status) => {
-      console.log("Subscription status:", status)
-   })
-   
-   // Backup Polling (every 3s) to ensure sync if socket fails
-   syncPollingInterval = setInterval(async () => {
-      const { data } = await supabase.from('rooms').select('timer_status, timer_config').eq('id', roomId).single()
-      if (data) {
-         if (data.timer_status) timerState.value = data.timer_status
-         if (data.timer_config) timerConfig.value = data.timer_config
+  // Timer Subscription
+  supabase
+    .channel(`room-timer-${roomId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+      (payload) => {
+        if (payload.new) {
+          syncTimer(payload.new)
+        }
       }
-   }, 3000)
+    )
+    .subscribe()
 
-  // 1. Fetch Room Config
-  const { data: roomData } = await supabase.from('rooms').select('*').eq('id', route.params.id).single()
+  // Locks Subscription
+  subscribeToRoom()
+
+  // Initial Room Data (Timer & Config)
+  const { data: roomData } = await supabase.from('rooms').select('*').eq('id', roomId).single()
   if (roomData) {
+     syncTimer(roomData)
      roomConfig.value = roomData
-     if (roomData.timer_config) timerConfig.value = roomData.timer_config
-     if (roomData.timer_status) timerState.value = roomData.timer_status
   }
 
-  // 2. Fetch Group Start Workshop
+  // Fetch My Start Workshop
   if (studentInfo.value?.id) {
      const { data: studentData } = await supabase.from('students').select('start_workshop_id').eq('id', studentInfo.value.id).single()
      if (studentData?.start_workshop_id) {
         startWorkshopId.value = studentData.start_workshop_id
      }
   }
+
+  // Timers
+  globalTimerInterval = setInterval(() => {
+     if (localTimerCalc.value.isRunning && localTimerCalc.value.remainingInPhase > 0) {
+        localTimerCalc.value.remainingInPhase -= 1000
+        if (localTimerCalc.value.remainingInPhase < 0) localTimerCalc.value.remainingInPhase = 0
+     } else if (localTimerCalc.value.isRunning) {
+        localTimerCalc.value = calculateTimerState(timerConfig.value, timerState.value)
+     }
+  }, 1000)
+
+  syncPollingInterval = setInterval(async () => {
+     const { data } = await supabase.from('rooms').select('*').eq('id', roomId).single()
+     if (data) syncTimer(data)
+  }, 10000) 
+})
+
+onBeforeUnmount(() => {
+  if (globalTimerInterval) clearInterval(globalTimerInterval)
+  if (syncPollingInterval) clearInterval(syncPollingInterval)
+  if (timerInterval.value) clearInterval(timerInterval.value)
+  supabase.removeAllChannels()
+})
+</script>
 
   // 2. Fetch Other Groups (Removed as requested)
   // const { data: studentsData } = await supabase.from('students').select('id, name').eq('room_id', route.params.id).neq('id', studentInfo.value.id)
