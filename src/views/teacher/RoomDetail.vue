@@ -931,7 +931,7 @@ const subscribeToStudents = () => {
 const deleteStudent = async (student) => {
   // Removing confirmation as requested
   
-  console.log("Attempting to delete student:", student)
+  // console.log("Attempting to delete student:", student)
 
   const originalRow = students.value.find(s => s.id === student.originalId)
   if (!originalRow) {
@@ -943,30 +943,30 @@ const deleteStudent = async (student) => {
   // Ensure precise matching by trimming both sides
   const newNames = names.filter(n => n.trim() !== student.realName.trim())
   
-  console.log("Current names:", names)
-  console.log("Names after removal:", newNames)
+  // console.log("Current names:", names)
+  // console.log("Names after removal:", newNames)
 
   if (newNames.length === 0) {
     // No students left in this group, delete the row
-    console.log("Deleting entire row...")
+    // console.log("Deleting entire row...")
     const { error } = await supabase.from('students').delete().eq('id', student.originalId)
     if (error) {
       console.error("Error deleting student row:", error)
       alert("Erreur lors de la suppression : " + error.message)
     } else {
-      console.log("Deleted successfully. Refreshing list...")
+      // console.log("Deleted successfully. Refreshing list...")
       await fetchStudents() // Force refresh
     }
   } else {
     // Update with remaining students
     const newNameStr = newNames.join(' & ')
-    console.log("Updating row with:", newNameStr)
+    // console.log("Updating row with:", newNameStr)
     const { error } = await supabase.from('students').update({ name: newNameStr }).eq('id', student.originalId)
     if (error) {
        console.error("Error updating student names:", error)
        alert("Erreur lors de la mise à jour : " + error.message)
     } else {
-       console.log("Updated successfully. Refreshing list...")
+       // console.log("Updated successfully. Refreshing list...")
        await fetchStudents() // Force refresh
     }
   }
@@ -1073,16 +1073,20 @@ const deleteWorkshop = async (id) => {
 }
 
 const saveWorkshopOrder = async () => {
-  const updates = workshops.value.map((w, index) => ({
-    id: w.id,
-    order_index: index
-  }))
+  // Use Promise.all for parallel updates (Safer than upsert for partial updates)
+  const updates = workshops.value.map((w, index) => 
+    supabase.from('workshops').update({ order_index: index }).eq('id', w.id)
+  )
   
   if (updates.length === 0) return
 
-  const { error } = await supabase.from('workshops').upsert(updates)
+  const results = await Promise.all(updates)
+  const error = results.find(r => r.error)?.error
+  
   if (error) {
      console.error("Error saving order:", error)
+  } else {
+     console.log("Order saved successfully")
   }
 }
 

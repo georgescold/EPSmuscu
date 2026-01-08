@@ -834,11 +834,11 @@ const fetchWorkshops = async () => {
   }
 
   if (data) {
-    console.log("Workshops data:", data)
-    data.forEach(w => {
+    // console.log("Workshops data:", data)
+    /*data.forEach(w => {
        console.log(`Workshop ${w.id}: show_p=${w.show_placement}, show_t=${w.show_tempo}, show_r=${w.show_respiration}`)
        console.log(`Exercise Content:`, w.exercises)
-    })
+    })*/
     workshops.value = data
     data.forEach(w => {
       if (!answers.value[w.id]) {
@@ -1249,7 +1249,7 @@ onMounted(async () => {
      if (studentInfo.value?.id) {
         const { data: me, error } = await supabase.from('students').select('id').eq('id', studentInfo.value.id).single()
         if (error || !me) {
-           console.log("Student entry missing, force leaving session...")
+           // console.log("Student entry missing, force leaving session...")
            clearInterval(syncPollingInterval)
            leaveSession()
         }
