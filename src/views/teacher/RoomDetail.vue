@@ -638,6 +638,13 @@ const selectedExercise = ref(null)
 import { watch } from 'vue'
 watch(selectedExercise, (newEx) => {
   if (newEx) {
+    // Only update mission from exercise defaults if we are creating a NEW workshop
+    // (Preserve custom mission if editing)
+    if (!editingWorkshopId.value) {
+       newWorkshop.value.mission = newEx.levels || ''
+    }
+    
+    // Auto-disable options if exercise doesn't support them
     if (!newEx.placement) newWorkshop.value.show_placement = false
     if (!newEx.respiration) newWorkshop.value.show_respiration = false
     if (!newEx.tempo) newWorkshop.value.show_tempo = false
