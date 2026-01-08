@@ -103,47 +103,66 @@
           <p class="text-gray-500 mt-2">Ajoutez des ateliers pour que les élèves puissent jouer.</p>
         </div>
 
-        <div v-else class="grid gap-4">
-          <div 
-            v-for="(workshop, index) in workshops" 
-            :key="workshop.id"
-            class="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row items-center sm:space-x-4 space-y-4 sm:space-y-0 hover:border-emerald-500/50 hover:shadow-md transition-all relative"
-          >
-            <!-- Number (Absolute on Mobile, Relative on Desktop) -->
-            <div class="absolute top-4 left-4 sm:static flex-shrink-0 w-10 h-10 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center font-bold font-mono border border-emerald-200">
-              {{ index + 1 }}
-            </div>
-            
-            <!-- Image (Full width on mobile) -->
-            <div class="w-full sm:w-24 h-32 sm:h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 ml-0 sm:ml-0 mt-8 sm:mt-0">
-              <img 
-                :src="workshop.workshop_image_url || workshop.exercise?.image_url" 
-                class="w-full h-full object-contain bg-white p-1"
-                alt="Atelier"
-              />
-            </div>
+        <draggable 
+          v-model="workshops" 
+          item-key="id"
+          tag="div"
+          class="grid gap-4"
+          handle=".drag-handle"
+          @end="onDragEnd"
+        >
+          <template #item="{ element: workshop, index }">
+            <div 
+              class="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row items-center sm:space-x-4 space-y-4 sm:space-y-0 hover:border-emerald-500/50 hover:shadow-md transition-all relative"
+            >
+              <!-- Drag Handle -->
+              <div class="absolute top-2 right-2 sm:hidden text-gray-300">
+                  <GripVertical :size="20" class="drag-handle" />
+              </div>
+              <div class="hidden sm:flex text-gray-300 cursor-grab active:cursor-grabbing drag-handle hover:text-gray-500 p-2">
+                  <GripVertical :size="24" />
+              </div>
 
-            <!-- Info -->
-            <div class="flex-1 min-w-0 w-full text-center sm:text-left">
-              <h3 class="text-lg font-bold text-gray-900 truncate">{{ workshop.exercise?.name }}</h3>
-              <div class="flex flex-wrap justify-center sm:justify-start gap-2 text-xs font-semibold mt-1">
-                <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200">{{ workshop.muscle_primary }}</span>
-                <span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded border border-yellow-200">{{ workshop.muscle_secondary }}</span>
-                <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200">{{ workshop.muscle_tertiary }}</span>
+              <!-- Number (Clickable to reorder) -->
+              <div 
+                @click="promptReorder(workshop, index)"
+                class="absolute top-4 left-4 sm:static flex-shrink-0 w-10 h-10 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center font-bold font-mono border border-emerald-200 cursor-pointer hover:bg-emerald-200 hover:scale-110 transition-all"
+                title="Cliquer pour changer la position"
+              >
+                {{ index + 1 }}
+              </div>
+              
+              <!-- Image (Full width on mobile) -->
+              <div class="w-full sm:w-24 h-32 sm:h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 ml-0 sm:ml-0 mt-8 sm:mt-0 drag-handle sm:cursor-grab active:cursor-grabbing">
+                <img 
+                  :src="workshop.workshop_image_url || workshop.exercise?.image_url" 
+                  class="w-full h-full object-contain bg-white p-1 pointer-events-none" 
+                  alt="Atelier"
+                />
+              </div>
+
+              <!-- Info -->
+              <div class="flex-1 min-w-0 w-full text-center sm:text-left">
+                <h3 class="text-lg font-bold text-gray-900 truncate">{{ workshop.exercise?.name }}</h3>
+                <div class="flex flex-wrap justify-center sm:justify-start gap-2 text-xs font-semibold mt-1">
+                  <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200">{{ workshop.muscle_primary }}</span>
+                  <span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded border border-yellow-200">{{ workshop.muscle_secondary }}</span>
+                  <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200">{{ workshop.muscle_tertiary }}</span>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex items-center w-full sm:w-auto justify-end sm:justify-start border-t sm:border-0 border-gray-100 pt-3 sm:pt-0 mt-3 sm:mt-0">
+                <button @click="editWorkshop(workshop)" class="text-gray-400 hover:text-emerald-500 p-2 transition-colors mr-1" title="Modifier">
+                   <Pencil :size="18" />
+                </button>
+                <button @click="deleteWorkshop(workshop.id)" class="text-gray-400 hover:text-red-500 p-2 transition-colors" title="Supprimer">
+                   <Trash2 :size="18" />
+                </button>
               </div>
             </div>
-
-            <!-- Actions -->
-            <div class="flex items-center w-full sm:w-auto justify-end sm:justify-start border-t sm:border-0 border-gray-100 pt-3 sm:pt-0 mt-3 sm:mt-0">
-              <button @click="editWorkshop(workshop)" class="text-gray-400 hover:text-emerald-500 p-2 transition-colors mr-1" title="Modifier">
-                 <Pencil :size="18" />
-              </button>
-              <button @click="deleteWorkshop(workshop.id)" class="text-gray-400 hover:text-red-500 p-2 transition-colors" title="Supprimer">
-                 <Trash2 :size="18" />
-              </button>
-            </div>
-          </div>
-        </div>
+          </template>
+        </draggable>
       </div>
 
       <!-- Attendance Tab -->
@@ -593,7 +612,8 @@ import { useRoute } from 'vue-router'
 import { supabase } from '../../supabase'
 import { MUSCLE_LIST } from '../../constants/muscles'
 import { calculateTimerState, TIMER_COLORS } from '../../utils/timer'
-import { ArrowLeft, Plus, Dumbbell, Trash2, X, Loader2, Users, Settings, Pencil, Check, Clock, Play, Pause, Square, Trophy } from 'lucide-vue-next'
+import { ArrowLeft, Plus, Dumbbell, Trash2, X, Loader2, Users, Settings, Pencil, Check, Clock, Play, Pause, Square, Trophy, GripVertical, Copy } from 'lucide-vue-next'
+import draggable from 'vuedraggable'
 
 const route = useRoute()
 const roomId = route.params.id
@@ -1047,7 +1067,48 @@ const deleteWorkshop = async (id) => {
   const { error } = await supabase.from('workshops').delete().eq('id', id)
   if (!error) {
     workshops.value = workshops.value.filter(w => w.id !== id)
+    // Re-index remaining (optional but cleaner)
+    saveWorkshopOrder() 
   }
+}
+
+const saveWorkshopOrder = async () => {
+  const updates = workshops.value.map((w, index) => ({
+    id: w.id,
+    order_index: index
+  }))
+  
+  if (updates.length === 0) return
+
+  const { error } = await supabase.from('workshops').upsert(updates)
+  if (error) {
+     console.error("Error saving order:", error)
+  }
+}
+
+const onDragEnd = () => {
+  saveWorkshopOrder()
+}
+
+const promptReorder = (workshop, currentIndex) => {
+   const input = prompt(`Changer la position de cet atelier (1 - ${workshops.value.length}) :`, currentIndex + 1)
+   if (input === null) return
+   
+   let newPos = parseInt(input)
+   if (isNaN(newPos)) return
+   
+   // Clamp
+   if (newPos < 1) newPos = 1
+   if (newPos > workshops.value.length) newPos = workshops.value.length
+   
+   const newIndex = newPos - 1
+   if (newIndex === currentIndex) return
+   
+   // Move
+   const item = workshops.value.splice(currentIndex, 1)[0]
+   workshops.value.splice(newIndex, 0, item)
+   
+   saveWorkshopOrder()
 }
 
 onMounted(() => {
