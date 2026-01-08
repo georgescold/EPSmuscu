@@ -266,15 +266,18 @@ const duplicateRoom = async (fromId) => {
       .from('workshops')
       .select('*')
       .eq('room_id', fromId)
+      .order('order_index', { ascending: true })
+      .order('created_at', { ascending: true })
     
     if (wsError) throw wsError
 
     if (workshops && workshops.length > 0) {
       // 3. Prepare New Workshops Payload
       // Remove ID, created_at, etc. and update room_id
-      const newWorkshops = workshops.map(w => {
+      const newWorkshops = workshops.map((w, index) => {
         const { id, created_at, ...rest } = w
-        return { ...rest, room_id: newRoom.id }
+        // Force re-indexing to ensure clean order (0, 1, 2...)
+        return { ...rest, room_id: newRoom.id, order_index: index }
       })
 
       const { error: copyError } = await supabase
