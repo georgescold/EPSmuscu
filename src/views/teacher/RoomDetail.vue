@@ -101,6 +101,9 @@
           </div>
           <h3 class="text-lg font-semibold text-gray-900">Aucun atelier configuré</h3>
           <p class="text-gray-500 mt-2">Ajoutez des ateliers pour que les élèves puissent jouer.</p>
+          <div v-if="isSavingOrder" class="absolute top-4 right-4 text-xs text-gray-400 flex items-center bg-white/80 px-2 py-1 rounded">
+             <Loader2 class="animate-spin w-3 h-3 mr-1"/> Sauvegarde...
+          </div>
         </div>
 
         <draggable 
@@ -1079,22 +1082,24 @@ const deleteWorkshop = async (id) => {
   }
 }
 
-const saveWorkshopOrder = async () => {
-  // Use Promise.all for parallel updates (Safer than upsert for partial updates)
-  const updates = workshops.value.map((w, index) => 
-    supabase.from('workshops').update({ order_index: index }).eq('id', w.id)
-  )
-  
-  if (updates.length === 0) return
+const isSavingOrder = ref(false)
 
-  const results = await Promise.all(updates)
-  const error = results.find(r => r.error)?.error
+const saveWorkshopOrder = async () => {
+  isSavingOrder.value = true
+  // console.log("Saving order for", workshops.value.length, "items")
   
-  if (error) {
-     console.error("Error saving order:", error)
-  } else {
-     console.log("Order saved successfully")
+  // Update sequentially to avoid any race condition or DB lock issues
+  for (let i = 0; i < workshops.value.length; i++) {
+     const w = workshops.value[i]
+     const { error } = await supabase
+       .from('workshops')
+       .update({ order_index: i })
+       .eq('id', w.id)
+       
+     if (error) console.error(`Failed to update order for ${w.id}:`, error)
   }
+  
+  isSavingOrder.value = false
 }
 
 const onDragEnd = () => {
