@@ -22,17 +22,28 @@
             <div v-else-if="students.length === 0" class="text-center py-8 text-gray-400 text-sm">
                Aucun élève trouvé.
             </div>
-            <button 
+            <div 
               v-else 
               v-for="student in students" 
               :key="student.name"
-              @click="selectStudent(student)"
-              class="w-full text-left px-4 py-3 rounded-lg hover:bg-emerald-50 transition-colors flex items-center justify-between group"
-              :class="selectedStudentName === student.name ? 'bg-emerald-50 ring-1 ring-emerald-200' : ''"
+              class="flex items-center justify-between group hover:bg-gray-50 rounded-lg transition-colors"
             >
-               <span class="font-medium text-gray-800">{{ student.name }}</span>
-               <ChevronRight :size="16" class="text-gray-400 group-hover:text-emerald-600" />
-            </button>
+              <button 
+                @click="selectStudent(student)"
+                class="flex-1 text-left px-4 py-3 flex items-center justify-between"
+                :class="selectedStudentName === student.name ? 'bg-emerald-50 rounded-l-lg' : ''"
+              >
+                 <span class="font-medium text-gray-800">{{ student.name }}</span>
+                 <ChevronRight :size="16" class="text-gray-400 group-hover:text-emerald-600" />
+              </button>
+              <button 
+                @click.stop="deleteStudent(student)"
+                class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-r-lg opacity-0 group-hover:opacity-100 transition-all"
+                title="Supprimer l'élève"
+              >
+                 <Trash2 :size="16" />
+              </button>
+            </div>
          </div>
       </div>
 
@@ -80,11 +91,11 @@
                      <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-100">
                         <tr>
                            <th class="px-4 py-3">Atelier</th>
-                           <th class="px-4 py-3 text-center">Niveau</th>
-                           <th class="px-4 py-3 text-center">Placement</th>
-                           <th class="px-4 py-3 text-center">Tempo</th>
-                           <th class="px-4 py-3 text-center">Respiration</th>
-                           <th class="px-4 py-3 text-center">Ressentis</th>
+                           <th v-if="roomConfig?.notebook_visible_level !== false" class="px-4 py-3 text-center">Niveau</th>
+                           <th v-if="roomConfig?.notebook_visible_placement !== false" class="px-4 py-3 text-center">Placement</th>
+                           <th v-if="roomConfig?.notebook_visible_tempo !== false" class="px-4 py-3 text-center">Tempo</th>
+                           <th v-if="roomConfig?.notebook_visible_respiration !== false" class="px-4 py-3 text-center">Respiration</th>
+                           <th v-if="roomConfig?.notebook_visible_feeling !== false" class="px-4 py-3 text-center">Ressentis</th>
                         </tr>
                      </thead>
                      <tbody class="divide-y divide-gray-100">
@@ -92,26 +103,26 @@
                            <td class="px-4 py-3 font-medium text-gray-900">
                               {{ entry.workshops?.exercise?.name || 'Atelier inconnu' }}
                            </td>
-                           <td class="px-4 py-3 text-center">
+                           <td v-if="roomConfig?.notebook_visible_level !== false" class="px-4 py-3 text-center">
                               <span v-if="entry.level_selected" class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-bold">{{ entry.level_selected }}</span>
                               <span v-else class="text-gray-400">--</span>
                            </td>
-                           <td class="px-4 py-3 text-center">
+                           <td v-if="roomConfig?.notebook_visible_placement !== false" class="px-4 py-3 text-center">
                               <span :class="entry.placement_errors === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'">
                                  {{ entry.placement_errors === 0 ? 'Ok' : entry.placement_errors }}
                               </span>
                            </td>
-                           <td class="px-4 py-3 text-center">
+                           <td v-if="roomConfig?.notebook_visible_tempo !== false" class="px-4 py-3 text-center">
                               <span :class="entry.tempo_errors === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'">
                                  {{ entry.tempo_errors === 0 ? 'Ok' : entry.tempo_errors }}
                               </span>
                            </td>
-                           <td class="px-4 py-3 text-center">
+                           <td v-if="roomConfig?.notebook_visible_respiration !== false" class="px-4 py-3 text-center">
                               <span :class="entry.respiration_errors === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'">
                                  {{ entry.respiration_errors === 0 ? 'Ok' : entry.respiration_errors }}
                               </span>
                            </td>
-                           <td class="px-4 py-3 text-center">
+                           <td v-if="roomConfig?.notebook_visible_feeling !== false" class="px-4 py-3 text-center">
                               <span v-if="entry.feeling" 
                                 class="px-2 py-1 rounded text-xs font-bold"
                                 :class="{
@@ -240,7 +251,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../../supabase'
-import { Users, ChevronRight, Loader2, BookOpen, User, Check } from 'lucide-vue-next'
+import { Users, ChevronRight, Loader2, BookOpen, User, Check, Trash2 } from 'lucide-vue-next'
 
 const loadingStudents = ref(true)
 const students = ref([]) // List of unique names
@@ -249,6 +260,7 @@ const studentSessions = ref([])
 const selectedSession = ref(null)
 const notebookData = ref([])
 const coachedData = ref([])
+const roomConfig = ref(null) // Config from the room for column visibility
 
 const coachedByPerformer = computed(() => {
   if (coachedData.value.length === 0) return {}
@@ -307,6 +319,26 @@ const selectStudent = async (student) => {
 const loadNotebook = async (session) => {
    selectedSession.value = session
    
+   // Fetch room config for column visibility
+   const { data: roomData } = await supabase
+      .from('rooms')
+      .select('notebook_visible_level, notebook_visible_placement, notebook_visible_tempo, notebook_visible_respiration, notebook_visible_feeling')
+      .eq('id', session.room_id)
+      .single()
+   
+   if (roomData) {
+      roomConfig.value = roomData
+   } else {
+      // Default all visible if no config found
+      roomConfig.value = {
+         notebook_visible_level: true,
+         notebook_visible_placement: true,
+         notebook_visible_tempo: true,
+         notebook_visible_respiration: true,
+         notebook_visible_feeling: true
+      }
+   }
+   
    const { data } = await supabase
       .from('notebook_entries')
       .select('*, workshops(id, exercise:exercises(name))')
@@ -338,6 +370,36 @@ const saveTeacherNote = async () => {
   } else {
      // Optional: show toast or brief success feedback
   }
+}
+
+const deleteStudent = async (student) => {
+   if (!confirm(`Supprimer l'élève "${student.name}" ?\n\nCela supprimera toutes ses données (carnets d'entraînement, notes, etc.) de toutes les séances.\n\nCette action est irréversible.`)) return
+
+   // Delete all notebook entries for this student
+   const { error: notebookError } = await supabase
+     .from('notebook_entries')
+     .delete()
+     .or(`performer_name.eq.${student.name},coach_name.eq.${student.name}`)
+
+   // Delete all student entries matching this name
+   const { error: studentError } = await supabase
+     .from('students')
+     .delete()
+     .ilike('name', `%${student.name}%`)
+
+   if (notebookError || studentError) {
+      alert("Erreur lors de la suppression : " + (notebookError?.message || studentError?.message))
+      return
+   }
+
+   // Refresh the list and clear selection
+   if (selectedStudentName.value === student.name) {
+      selectedStudentName.value = null
+      studentSessions.value = []
+      selectedSession.value = null
+      notebookData.value = []
+   }
+   await fetchStudents()
 }
 
 onMounted(fetchStudents)

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="min-h-screen bg-gray-50 p-4 md:p-8">
     
     <!-- Header -->
@@ -106,26 +106,12 @@
           </div>
         </div>
 
-        <draggable 
-          v-model="workshops" 
-          item-key="id"
-          tag="div"
-          class="grid gap-4"
-          handle=".drag-handle"
-          @end="onDragEnd"
-        >
-          <template #item="{ element: workshop, index }">
-            <div 
-              class="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row items-center sm:space-x-4 space-y-4 sm:space-y-0 hover:border-emerald-500/50 hover:shadow-md transition-all relative"
-            >
-              <!-- Drag Handle -->
-              <div class="absolute top-2 right-2 sm:hidden text-gray-300">
-                  <GripVertical :size="20" class="drag-handle" />
-              </div>
-              <div class="hidden sm:flex text-gray-300 cursor-grab active:cursor-grabbing drag-handle hover:text-gray-500 p-2">
-                  <GripVertical :size="24" />
-              </div>
-
+        <div class="grid gap-4">
+          <div 
+            v-for="(workshop, index) in workshops" 
+            :key="workshop.id"
+            class="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row items-center sm:space-x-4 space-y-4 sm:space-y-0 hover:border-emerald-500/50 hover:shadow-md transition-all relative"
+          >
               <!-- Number (Clickable to reorder) -->
               <div 
                 @click="promptReorder(workshop, index)"
@@ -136,7 +122,7 @@
               </div>
               
               <!-- Image (Full width on mobile) -->
-              <div class="w-full sm:w-24 h-32 sm:h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 ml-0 sm:ml-0 mt-8 sm:mt-0 drag-handle sm:cursor-grab active:cursor-grabbing">
+              <div class="w-full sm:w-24 h-32 sm:h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 ml-0 sm:ml-0 mt-8 sm:mt-0">
                 <img 
                   :src="workshop.workshop_image_url || workshop.exercise?.image_url" 
                   class="w-full h-full object-contain bg-white p-1 pointer-events-none" 
@@ -163,9 +149,8 @@
                    <Trash2 :size="18" />
                 </button>
               </div>
-            </div>
-          </template>
-        </draggable>
+          </div>
+        </div>
       </div>
 
       <!-- Attendance Tab -->
@@ -353,7 +338,7 @@
                   </div>
                   <div class="flex-1">
                      <div class="font-bold text-gray-800 text-sm">{{ phase.name }}</div>
-                     <div class="text-xs text-gray-500">{{ formatDuration(phase.duration) }} • {{ getColorLabel(phase.color) }}</div>
+                      <div class="text-xs text-gray-500">{{ formatDuration(phase.duration) }} • {{ getColorLabel(phase.color) }}{{ phase.sound && phase.sound !== 'none' ? ' • ' + getSoundIcon(phase.sound) : '' }}</div>
                   </div>
                   <button @click="removePhase(idx)" class="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                      <Trash2 :size="16" />
@@ -411,6 +396,12 @@
                      </div>
                      <p class="text-[10px] text-gray-500 mt-1 text-center">{{ timerColors.find(c => c.value === newPhase.color)?.label }}</p>
                   </div>
+                   <div>
+                      <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Son de fin</label>
+                      <div class="grid grid-cols-3 gap-1">
+                         <button type="button" v-for="sound in timerSounds" :key="sound.value" @click.prevent="selectSound(sound.value)" class="py-2 px-2 rounded-lg border-2 transition-all text-center" :class="newPhase.sound === sound.value ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'" :title="sound.label"><span class="text-lg">{{ sound.icon }}</span><span class="block text-[10px] font-medium mt-0.5">{{ sound.label }}</span></button>
+                      </div>
+                   </div>
                   <button 
                      @click="addPhase"
                      :disabled="!isValidPhase"
@@ -614,9 +605,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../../supabase'
 import { MUSCLE_LIST } from '../../constants/muscles'
-import { calculateTimerState, TIMER_COLORS } from '../../utils/timer'
-import { ArrowLeft, Plus, Dumbbell, Trash2, X, Loader2, Users, Settings, Pencil, Check, Clock, Play, Pause, Square, Trophy, GripVertical, Copy } from 'lucide-vue-next'
-import draggable from 'vuedraggable'
+import { calculateTimerState, TIMER_COLORS, TIMER_SOUNDS, playTimerSound } from '../../utils/timer'
+import { ArrowLeft, Plus, Dumbbell, Trash2, X, Loader2, Users, Settings, Pencil, Check, Clock, Play, Pause, Square, Trophy, Copy } from 'lucide-vue-next'
+
 
 const route = useRoute()
 const roomId = route.params.id
@@ -699,12 +690,15 @@ const fetchRoomDetails = async () => {
 
 // Timer Logic
 const timerColors = TIMER_COLORS
+const timerSounds = TIMER_SOUNDS
+const getSoundIcon = (sound) => TIMER_SOUNDS.find(s => s.value === sound)?.icon || ''
+const selectSound = (soundValue) => { newPhase.value.sound = soundValue; if (soundValue !== 'none') playTimerSound(soundValue); }
 const timerConfig = ref({ repeats: 1, phases: [] })
 const timerState = ref({ state: 'idle', start_timestamp: null, paused_timestamp: null, elapsed_before_pause: 0 })
 const localTimerCalc = ref({})
 const configChanged = ref(false)
 
-const newPhase = ref({ name: 'Travail', min: 0, sec: 0, color: 'emerald' })
+const newPhase = ref({ name: 'Travail', min: 0, sec: 0, color: 'emerald', sound: 'none' })
 
 const isValidPhase = computed(() => {
    return newPhase.value.name.length > 0 && (newPhase.value.min > 0 || newPhase.value.sec > 0)
@@ -716,11 +710,12 @@ const addPhase = () => {
       id: crypto.randomUUID(),
       name: newPhase.value.name,
       duration: duration,
-      color: newPhase.value.color
+       color: newPhase.value.color,
+       sound: newPhase.value.sound
    })
    configChanged.value = true
    // Reset form (keep name/color for rapid entry?)
-   newPhase.value = { name: 'Repos', min: 0, sec: 30, color: 'red' }
+   newPhase.value = { name: 'Repos', min: 0, sec: 30, color: 'red', sound: 'none' }
 }
 
 const removePhase = (idx) => {

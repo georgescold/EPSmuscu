@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div v-if="studentInfo" class="min-h-screen bg-gray-50 pb-48 md:pb-24">
     
     <!-- Top Bar -->
@@ -14,7 +14,7 @@
               <span class="font-bold text-gray-900 text-xs md:text-sm leading-tight truncate block max-w-[100px] md:max-w-[200px]" :title="studentInfo?.name">
                 {{ studentInfo?.name }}
               </span>
-              <button @click="leaveSession" class="text-[10px] flex items-center text-red-500 hover:text-red-700 font-medium mt-0.5 hover:underline decoration-red-500/30 transition-all w-fit">
+              <button v-if="!startWorkshopId" @click="leaveSession" class="text-[10px] flex items-center text-red-500 hover:text-red-700 font-medium mt-0.5 hover:underline decoration-red-500/30 transition-all w-fit">
                  <LogOut :size="10" class="mr-1" />
                  Quitter
               </button>
@@ -253,29 +253,29 @@
                          <ChevronDown :size="18" class="text-gray-400 transition-transform" :class="{'rotate-180': openDropdown === `${workshop.id}-${type}`}" />
                        </button>
                        
-                       <!-- Dropdown Menu -->
+                       <!-- Backdrop to close (placed BEFORE dropdown so it doesn't block scroll) -->
                        <div 
                          v-if="openDropdown === `${workshop.id}-${type}`" 
-                         class="absolute z-10 top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto p-2 space-y-1 custom-scrollbar animate-in fade-in zoom-in-95 duration-100"
+                         class="fixed inset-0 z-40" 
+                         @click="openDropdown = null"
+                       ></div>
+                       
+                       <!-- Dropdown Menu (z-50 to be above backdrop) -->
+                       <div 
+                         v-if="openDropdown === `${workshop.id}-${type}`" 
+                         class="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl max-h-[50vh] overflow-y-auto p-2 space-y-1 custom-scrollbar animate-in fade-in zoom-in-95 duration-100"
                        >
                          <button
                            v-for="m in muscleList"
                            :key="m"
                            @click="answers[workshop.id][type] = m; openDropdown = null"
-                           class="w-full text-left px-3 py-2 rounded-lg transition-all flex items-center justify-between text-xs border border-transparent"
+                           class="w-full text-left px-3 py-2.5 rounded-lg transition-all flex items-center justify-between text-sm border border-transparent"
                            :class="getMuscleStyle(m, answers[workshop.id][type] === m)"
                          >
                            <span>{{ m }}</span>
                            <CheckCircle2 v-if="answers[workshop.id][type] === m" :size="16" class="text-emerald-600" />
                          </button>
                        </div>
-                       
-                       <!-- Backdrop to close -->
-                       <div 
-                         v-if="openDropdown === `${workshop.id}-${type}`" 
-                         class="fixed inset-0 z-0" 
-                         @click="openDropdown = null"
-                       ></div>
                     </div>
                  </div>
                </div>
@@ -659,7 +659,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../../supabase'
-import { calculateTimerState, TIMER_COLORS } from '../../utils/timer'
+import { calculateTimerState, TIMER_COLORS, playTimerSound } from '../../utils/timer'
 import { useStudentStore } from '../../stores/student'
 import { MUSCLE_LIST } from '../../constants/muscles'
 import { User, Timer, Trophy, Loader2, CheckCircle2, LogOut, RotateCcw, Play, Pause, Info, X, FileText, ChevronDown, Target, ClipboardList, Shield, Clock, Wind, AlertTriangle } from 'lucide-vue-next'
@@ -731,6 +731,7 @@ let timerInterval = ref(null)
 const timerConfig = ref({ repeats: 1, phases: [] })
 const timerState = ref({ state: 'idle', start_timestamp: null, paused_timestamp: null, elapsed_before_pause: 0 })
 const localTimerCalc = ref({})
+let lastPhaseIndex = -1 // Track phase changes for sound notifications
 const startWorkshopId = ref(null)
 const playingVideoId = ref(null)
 const feedbackState = ref({ isVisible: false, title: '', message: '', type: 'success' })
@@ -860,21 +861,21 @@ const validateNotebook = (workshopId) => {
 
   // 1. Check Level (if globally enabled)
   if (roomConfig.value?.notebook_visible_level !== false && !entry.level_selected) {
-    showFeedback('Incomplet', 'Veuillez sélectionner un niveau.', 'warning')
+    showFeedback('Carnet incomplet', 'Pensez à bien compléter votre carnet d\'entraînement avant de pouvoir continuer.', 'warning')
     return false
   }
 
   // 2. Check Placement (if workshop enabled)
   const workshop = workshops.value.find(w => w.id === workshopId)
   if (workshop?.show_placement && (entry.placement_errors === undefined || entry.placement_errors === null)) {
-     showFeedback('Incomplet', 'Veuillez remplir le placement.', 'warning')
+     showFeedback('Carnet incomplet', 'Pensez à bien compléter votre carnet d\'entraînement avant de pouvoir continuer.', 'warning')
      return false
   }
 
   // 3. Check Feeling (always required if visible logic exists? usually yes)
   // Assuming Feeling is always part of the notebook flow
   if (roomConfig.value?.notebook_visible_feeling !== false && !entry.feeling) {
-     showFeedback('Incomplet', 'Veuillez indiquer votre ressenti.', 'warning')
+     showFeedback('Carnet incomplet', 'Pensez à bien compléter votre carnet d\'entraînement avant de pouvoir continuer.', 'warning')
      return false
   }
 
@@ -1229,9 +1230,19 @@ onMounted(async () => {
 
   // Timers
   globalTimerInterval = setInterval(() => {
+     const prevPhaseIndex = localTimerCalc.value.currentPhaseIndex
+     
      if (localTimerCalc.value.isRunning && localTimerCalc.value.remainingInPhase > 0) {
         localTimerCalc.value.remainingInPhase -= 1000
         if (localTimerCalc.value.remainingInPhase < 0) localTimerCalc.value.remainingInPhase = 0
+        
+        // Check if phase just ended (remaining hit 0)
+        if (localTimerCalc.value.remainingInPhase <= 0 && prevPhaseIndex >= 0) {
+           const endedPhase = timerConfig.value.phases[prevPhaseIndex % timerConfig.value.phases.length]
+           if (endedPhase?.sound) {
+              playTimerSound(endedPhase.sound)
+           }
+        }
      } else if (localTimerCalc.value.isRunning) {
         localTimerCalc.value = calculateTimerState(timerConfig.value, timerState.value)
      }
