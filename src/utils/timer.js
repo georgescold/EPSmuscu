@@ -113,14 +113,14 @@ export const TIMER_SOUNDS = [
     { label: 'Buzzer', value: 'buzzer', icon: '📢' },
 ]
 
-// Play a sound for phase end notification
+// Play a sound for phase end notification (5 seconds duration)
 export function playTimerSound(soundType) {
     if (!soundType || soundType === 'none') return
 
     const audioContext = new (window.AudioContext || window.webkitAudioContext)()
 
     if (soundType === 'bell') {
-        // Realistic bell sound with multiple harmonics
+        // Realistic bell sound with multiple harmonics - 5 seconds total
         const playBellStrike = (delay = 0) => {
             const now = audioContext.currentTime + delay
 
@@ -135,26 +135,28 @@ export function playTimerSound(soundType) {
                 osc.type = 'sine'
                 osc.frequency.setValueAtTime(freq, now)
 
-                // Bell-like decay envelope
+                // Bell-like decay envelope (longer for 5 sec total)
                 gain.gain.setValueAtTime(0, now)
                 gain.gain.linearRampToValueAtTime(gains[i], now + 0.01)
-                gain.gain.exponentialRampToValueAtTime(gains[i] * 0.3, now + 0.3)
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5)
+                gain.gain.exponentialRampToValueAtTime(gains[i] * 0.4, now + 0.5)
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 2.0)
 
                 osc.connect(gain)
                 gain.connect(audioContext.destination)
 
                 osc.start(now)
-                osc.stop(now + 1.5)
+                osc.stop(now + 2.0)
             })
         }
 
-        // Two bell strikes
+        // Four bell strikes spread over 5 seconds
         playBellStrike(0)
-        playBellStrike(0.5)
+        playBellStrike(1.2)
+        playBellStrike(2.4)
+        playBellStrike(3.6)
 
     } else if (soundType === 'buzzer') {
-        // Pleasant alarm sound - alternating tones
+        // Pleasant alarm sound - 5 seconds total
         const playAlarmTone = (startTime, freq, duration) => {
             const osc = audioContext.createOscillator()
             const gain = audioContext.createGain()
@@ -164,8 +166,8 @@ export function playTimerSound(soundType) {
 
             // Smooth envelope
             gain.gain.setValueAtTime(0, startTime)
-            gain.gain.linearRampToValueAtTime(0.4, startTime + 0.05)
-            gain.gain.setValueAtTime(0.4, startTime + duration - 0.05)
+            gain.gain.linearRampToValueAtTime(0.35, startTime + 0.03)
+            gain.gain.setValueAtTime(0.35, startTime + duration - 0.03)
             gain.gain.linearRampToValueAtTime(0, startTime + duration)
 
             osc.connect(gain)
@@ -176,11 +178,11 @@ export function playTimerSound(soundType) {
         }
 
         const now = audioContext.currentTime
-        // Classic two-tone alarm pattern (like European emergency services)
-        playAlarmTone(now, 880, 0.25)        // A5
-        playAlarmTone(now + 0.25, 698.46, 0.25)  // F5
-        playAlarmTone(now + 0.5, 880, 0.25)  // A5
-        playAlarmTone(now + 0.75, 698.46, 0.25)  // F5
-        playAlarmTone(now + 1.0, 880, 0.4)   // A5 (longer final tone)
+        // Extended two-tone alarm pattern over 5 seconds
+        for (let i = 0; i < 8; i++) {
+            const baseTime = now + (i * 0.6)
+            playAlarmTone(baseTime, 880, 0.28)        // A5
+            playAlarmTone(baseTime + 0.3, 698.46, 0.28)  // F5
+        }
     }
 }
