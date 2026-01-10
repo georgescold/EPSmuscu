@@ -253,30 +253,33 @@
                          <ChevronDown :size="18" class="text-gray-400 transition-transform" :class="{'rotate-180': openDropdown === `${workshop.id}-${type}`}" />
                        </button>
                        
-                       <!-- Backdrop to close (placed BEFORE dropdown so it doesn't block scroll) -->
+                       <!-- Backdrop to close -->
                        <div 
                          v-if="openDropdown === `${workshop.id}-${type}`" 
-                         class="fixed inset-0 z-40" 
+                         class="fixed inset-0 z-[90] bg-black/40 md:bg-transparent" 
                          @click="openDropdown = null"
                        ></div>
                        
-                       <!-- Dropdown Menu (fixed on mobile for better scroll) -->
+                       <!-- Dropdown Menu (fullscreen modal on mobile) -->
                        <div 
                          v-if="openDropdown === `${workshop.id}-${type}`" 
-                         class="fixed md:absolute z-[100] inset-x-4 md:inset-x-auto md:left-0 md:right-0 bottom-24 md:bottom-auto md:top-full md:mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-[60vh] overflow-y-auto p-2 space-y-1 custom-scrollbar animate-in fade-in zoom-in-95 duration-100"
+                         class="fixed md:absolute z-[100] left-0 right-0 md:left-0 md:right-0 top-20 md:top-full bottom-24 md:bottom-auto md:mt-2 mx-4 md:mx-0 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-y-auto p-3 md:p-2 space-y-1 custom-scrollbar animate-in fade-in zoom-in-95 duration-100 md:max-h-[50vh]"
                        >
-                         <div class="sticky top-0 bg-white pb-2 mb-1 border-b border-gray-100 md:hidden">
-                           <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Sélectionner un muscle</span>
+                         <div class="sticky top-0 bg-white pb-2 mb-2 border-b border-gray-100 flex items-center justify-between md:hidden">
+                           <span class="text-sm font-bold text-gray-700">Sélectionner un muscle</span>
+                           <button @click="openDropdown = null" class="text-gray-400 hover:text-gray-600 p-1">
+                             <X :size="20" />
+                           </button>
                          </div>
                          <button
                            v-for="m in muscleList"
                            :key="m"
                            @click="answers[workshop.id][type] = m; openDropdown = null"
-                           class="w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition-all flex items-center justify-between text-sm border border-transparent"
+                           class="w-full text-left px-4 py-3.5 md:py-2.5 rounded-lg transition-all flex items-center justify-between text-base md:text-sm border border-transparent"
                            :class="getMuscleStyle(m, answers[workshop.id][type] === m)"
                          >
                            <span>{{ m }}</span>
-                           <CheckCircle2 v-if="answers[workshop.id][type] === m" :size="16" class="text-emerald-600" />
+                           <CheckCircle2 v-if="answers[workshop.id][type] === m" :size="18" class="text-emerald-600" />
                          </button>
                        </div>
                     </div>
