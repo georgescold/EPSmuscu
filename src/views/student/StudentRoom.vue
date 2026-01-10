@@ -260,16 +260,19 @@
                          @click="openDropdown = null"
                        ></div>
                        
-                       <!-- Dropdown Menu (z-50 to be above backdrop) -->
+                       <!-- Dropdown Menu (fixed on mobile for better scroll) -->
                        <div 
                          v-if="openDropdown === `${workshop.id}-${type}`" 
-                         class="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl max-h-[50vh] overflow-y-auto p-2 space-y-1 custom-scrollbar animate-in fade-in zoom-in-95 duration-100"
+                         class="fixed md:absolute z-[100] inset-x-4 md:inset-x-auto md:left-0 md:right-0 bottom-24 md:bottom-auto md:top-full md:mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-[60vh] overflow-y-auto p-2 space-y-1 custom-scrollbar animate-in fade-in zoom-in-95 duration-100"
                        >
+                         <div class="sticky top-0 bg-white pb-2 mb-1 border-b border-gray-100 md:hidden">
+                           <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Sélectionner un muscle</span>
+                         </div>
                          <button
                            v-for="m in muscleList"
                            :key="m"
                            @click="answers[workshop.id][type] = m; openDropdown = null"
-                           class="w-full text-left px-3 py-2.5 rounded-lg transition-all flex items-center justify-between text-sm border border-transparent"
+                           class="w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition-all flex items-center justify-between text-sm border border-transparent"
                            :class="getMuscleStyle(m, answers[workshop.id][type] === m)"
                          >
                            <span>{{ m }}</span>
@@ -659,7 +662,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../../supabase'
-import { calculateTimerState, TIMER_COLORS, playTimerSound } from '../../utils/timer'
+import { calculateTimerState, TIMER_COLORS, playTimerSound, unlockAudio } from '../../utils/timer'
 import { useStudentStore } from '../../stores/student'
 import { MUSCLE_LIST } from '../../constants/muscles'
 import { User, Timer, Trophy, Loader2, CheckCircle2, LogOut, RotateCcw, Play, Pause, Info, X, FileText, ChevronDown, Target, ClipboardList, Shield, Clock, Wind, AlertTriangle } from 'lucide-vue-next'
@@ -773,6 +776,9 @@ watch(currentWorkshopIndex, (val) => {
 })
 
 const setStartWorkshop = async (wId) => {
+   // Unlock audio for mobile (requires user interaction)
+   unlockAudio()
+   
    startWorkshopId.value = wId
    // Reset index when changing start point? Or keep?
    // Usually start point change implies reset.
@@ -909,18 +915,28 @@ const submitWorkshop = async (workshop) => {
   const sMatch = expected.s === actual.s
   const tMatch = expected.t === actual.t
 
-  if (pMatch && sMatch && tMatch) {
-    points = 100
-  } else {
-    if (pMatch) points += 10
-    if (sMatch) points += 5
-    if (tMatch) points += 3
-    
-    const allExpected = [expected.p, expected.s, expected.t].filter(Boolean)
-    
-    if (!pMatch && allExpected.includes(actual.p)) points += 1
-    if (!sMatch && allExpected.includes(actual.s)) points += 1
-    if (!tMatch && allExpected.includes(actual.t)) points += 1
+  // New scoring system: no bonus for all correct, individual points per position
+  const allExpected = [expected.p, expected.s, expected.t].filter(Boolean)
+  
+  // Principal: 50pts if correct, 1pt if found but wrong position
+  if (pMatch) {
+    points += 50
+  } else if (allExpected.includes(actual.p)) {
+    points += 1
+  }
+  
+  // Secondaire: 10pts if correct, 1pt if found but wrong position
+  if (sMatch) {
+    points += 10
+  } else if (allExpected.includes(actual.s)) {
+    points += 1
+  }
+  
+  // Tertiaire: 5pts if correct, 1pt if found but wrong position
+  if (tMatch) {
+    points += 5
+  } else if (allExpected.includes(actual.t)) {
+    points += 1
   }
 
   // Differential Scoring Logic

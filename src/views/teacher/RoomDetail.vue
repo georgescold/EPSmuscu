@@ -605,7 +605,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../../supabase'
 import { MUSCLE_LIST } from '../../constants/muscles'
-import { calculateTimerState, TIMER_COLORS, TIMER_SOUNDS, playTimerSound } from '../../utils/timer'
+import { calculateTimerState, TIMER_COLORS, TIMER_SOUNDS, playTimerSound, unlockAudio } from '../../utils/timer'
 import { ArrowLeft, Plus, Dumbbell, Trash2, X, Loader2, Users, Settings, Pencil, Check, Clock, Play, Pause, Square, Trophy, Copy } from 'lucide-vue-next'
 
 
@@ -692,7 +692,7 @@ const fetchRoomDetails = async () => {
 const timerColors = TIMER_COLORS
 const timerSounds = TIMER_SOUNDS
 const getSoundIcon = (sound) => TIMER_SOUNDS.find(s => s.value === sound)?.icon || ''
-const selectSound = (soundValue) => { newPhase.value.sound = soundValue; if (soundValue !== 'none') playTimerSound(soundValue); }
+const selectSound = (soundValue) => { newPhase.value.sound = soundValue; if (soundValue !== 'none') { unlockAudio(); playTimerSound(soundValue); } }
 const timerConfig = ref({ repeats: 1, phases: [] })
 const timerState = ref({ state: 'idle', start_timestamp: null, paused_timestamp: null, elapsed_before_pause: 0 })
 const localTimerCalc = ref({})

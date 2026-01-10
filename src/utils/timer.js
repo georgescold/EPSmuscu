@@ -113,24 +113,38 @@ export const TIMER_SOUNDS = [
     { label: 'Buzzer', value: 'buzzer', icon: '📢' },
 ]
 
+// Persistent AudioContext for mobile compatibility
+let audioContext = null
+
+function getAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)()
+    }
+    // Resume if suspended (mobile requirement)
+    if (audioContext.state === 'suspended') {
+        audioContext.resume()
+    }
+    return audioContext
+}
+
 // Play a sound for phase end notification (5 seconds duration)
 export function playTimerSound(soundType) {
     if (!soundType || soundType === 'none') return
 
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+    const ctx = getAudioContext()
 
     if (soundType === 'bell') {
         // Realistic bell sound with multiple harmonics - 5 seconds total
         const playBellStrike = (delay = 0) => {
-            const now = audioContext.currentTime + delay
+            const now = ctx.currentTime + delay
 
             // Fundamental and harmonics for rich bell tone
             const frequencies = [523.25, 659.25, 783.99, 1046.5] // C5, E5, G5, C6
             const gains = [0.5, 0.3, 0.2, 0.15]
 
             frequencies.forEach((freq, i) => {
-                const osc = audioContext.createOscillator()
-                const gain = audioContext.createGain()
+                const osc = ctx.createOscillator()
+                const gain = ctx.createGain()
 
                 osc.type = 'sine'
                 osc.frequency.setValueAtTime(freq, now)
@@ -142,7 +156,7 @@ export function playTimerSound(soundType) {
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 2.0)
 
                 osc.connect(gain)
-                gain.connect(audioContext.destination)
+                gain.connect(ctx.destination)
 
                 osc.start(now)
                 osc.stop(now + 2.0)
@@ -158,8 +172,8 @@ export function playTimerSound(soundType) {
     } else if (soundType === 'buzzer') {
         // Pleasant alarm sound - 5 seconds total
         const playAlarmTone = (startTime, freq, duration) => {
-            const osc = audioContext.createOscillator()
-            const gain = audioContext.createGain()
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
 
             osc.type = 'sine'
             osc.frequency.setValueAtTime(freq, startTime)
@@ -171,13 +185,13 @@ export function playTimerSound(soundType) {
             gain.gain.linearRampToValueAtTime(0, startTime + duration)
 
             osc.connect(gain)
-            gain.connect(audioContext.destination)
+            gain.connect(ctx.destination)
 
             osc.start(startTime)
             osc.stop(startTime + duration)
         }
 
-        const now = audioContext.currentTime
+        const now = ctx.currentTime
         // Extended two-tone alarm pattern over 5 seconds
         for (let i = 0; i < 8; i++) {
             const baseTime = now + (i * 0.6)
@@ -186,3 +200,17 @@ export function playTimerSound(soundType) {
         }
     }
 }
+
+// Call this on any user interaction to unlock audio on mobile
+export function unlockAudio() {
+    const ctx = getAudioContext()
+    // Play a silent sound to unlock
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0, ctx.currentTime)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.001)
+}
+
