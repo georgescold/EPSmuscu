@@ -901,6 +901,9 @@ const validateNotebook = (workshopId) => {
 }
 
 const submitWorkshop = async (workshop) => {
+  // Unlock audio on user interaction (for timer sounds later)
+  unlockAudio()
+  
   // Enforce notebook validation
   if (!validateNotebook(workshop.id)) return
 
@@ -1259,15 +1262,18 @@ onMounted(async () => {
   // Timers
   globalTimerInterval = setInterval(() => {
      const prevPhaseIndex = localTimerCalc.value.currentPhaseIndex
+     const prevRemaining = localTimerCalc.value.remainingInPhase
      
      if (localTimerCalc.value.isRunning && localTimerCalc.value.remainingInPhase > 0) {
         localTimerCalc.value.remainingInPhase -= 1000
         if (localTimerCalc.value.remainingInPhase < 0) localTimerCalc.value.remainingInPhase = 0
         
         // Check if phase just ended (remaining hit 0)
-        if (localTimerCalc.value.remainingInPhase <= 0 && prevPhaseIndex >= 0) {
+        if (localTimerCalc.value.remainingInPhase <= 0 && prevRemaining > 0 && prevPhaseIndex >= 0) {
            const endedPhase = timerConfig.value.phases[prevPhaseIndex % timerConfig.value.phases.length]
-           if (endedPhase?.sound) {
+           if (endedPhase?.sound && endedPhase.sound !== 'none') {
+              console.log('Phase ended, playing sound:', endedPhase.sound)
+              unlockAudio()
               playTimerSound(endedPhase.sound)
            }
         }
