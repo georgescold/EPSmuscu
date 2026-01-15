@@ -753,15 +753,15 @@ const feedbackState = ref({ isVisible: false, title: '', message: '', type: 'suc
 const takenWorkshopIds = ref(new Set())
 
 const hasPlacement = computed(() => {
-   return orderedWorkshops.value.some(w => w.show_placement)
+   return roomConfig.value?.notebook_visible_placement !== false
 })
 
 const hasTempo = computed(() => {
-   return orderedWorkshops.value.some(w => w.show_tempo)
+   return roomConfig.value?.notebook_visible_tempo !== false
 })
 
 const hasRespiration = computed(() => {
-   return orderedWorkshops.value.some(w => w.show_respiration)
+   return roomConfig.value?.notebook_visible_respiration !== false
 })
 
 const orderedWorkshops = computed(() => {
