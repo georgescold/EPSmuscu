@@ -106,6 +106,12 @@ export const TIMER_SOUNDS = [
     { label: 'Buzzer', value: 'buzzer', icon: '📢' },
 ]
 
+// Special actions that can be triggered when a phase ends
+export const TIMER_ACTIONS = [
+    { label: 'Aucune', value: 'none', icon: '➖' },
+    { label: 'Changer d\'atelier', value: 'workshop_change', icon: '🔄' },
+]
+
 // Persistent AudioContext for Android/Desktop compatibility
 let audioContext = null
 

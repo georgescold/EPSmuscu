@@ -1,22 +1,22 @@
 <template>
   <div class="flex flex-col items-center">
     <button 
-      @click="increment" 
-      class="text-gray-400 hover:text-emerald-600 focus:outline-none p-1"
+      @click="toggle" 
+      class="text-gray-400 hover:text-gray-600 focus:outline-none p-1"
     >
       <ChevronUp :size="16" />
     </button>
     
     <span 
-      class="font-bold font-mono text-sm py-1 min-w-[30px] text-center select-none"
-      :class="modelValue === 0 ? 'text-emerald-600' : 'text-amber-600'"
+      class="font-bold text-xs py-1 min-w-[60px] text-center select-none uppercase tracking-wide"
+      :class="modelValue === 0 ? 'text-emerald-600' : 'text-red-500'"
     >
-      {{ modelValue === 0 ? 'Ok' : modelValue }}
+      {{ modelValue === 0 ? 'BON' : 'PAS BON' }}
     </span>
 
     <button 
-      @click="decrement" 
-      class="text-gray-400 hover:text-emerald-600 focus:outline-none p-1"
+      @click="toggle" 
+      class="text-gray-400 hover:text-gray-600 focus:outline-none p-1"
     >
       <ChevronDown :size="16" />
     </button>
@@ -35,13 +35,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const increment = () => {
-  emit('update:modelValue', props.modelValue + 1)
-}
-
-const decrement = () => {
-  if (props.modelValue > 0) {
-    emit('update:modelValue', props.modelValue - 1)
-  }
+const toggle = () => {
+  // Toggle between 0 (BON) and 1 (PAS BON)
+  emit('update:modelValue', props.modelValue === 0 ? 1 : 0)
 }
 </script>

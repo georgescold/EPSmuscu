@@ -91,14 +91,11 @@
                      <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-100">
                         <tr>
                            <th class="px-4 py-3">Atelier</th>
-                           <th v-if="roomConfig?.notebook_visible_series" class="px-4 py-3 text-center">Série</th>
-                           <th class="px-4 py-3 text-center">Niveau</th>
-                           <th v-if="roomConfig?.notebook_visible_charges" class="px-4 py-3 text-center">Charges</th>
-                           <th v-if="roomConfig?.notebook_visible_reps" class="px-4 py-3 text-center">Reps</th>
-                           <th class="px-4 py-3 text-center">Placement</th>
-                           <th class="px-4 py-3 text-center">Tempo</th>
-                           <th class="px-4 py-3 text-center">Respiration</th>
-                           <th class="px-4 py-3 text-center">Ressentis</th>
+                           <th v-if="roomConfig?.notebook_visible_level !== false" class="px-4 py-3 text-center">Niveau</th>
+                           <th v-if="roomConfig?.notebook_visible_placement !== false" class="px-4 py-3 text-center">Placement</th>
+                           <th v-if="roomConfig?.notebook_visible_tempo !== false" class="px-4 py-3 text-center">Tempo</th>
+                           <th v-if="roomConfig?.notebook_visible_respiration !== false" class="px-4 py-3 text-center">Respiration</th>
+                           <th v-if="roomConfig?.notebook_visible_feeling !== false" class="px-4 py-3 text-center">Ressentis</th>
                         </tr>
                      </thead>
                      <tbody class="divide-y divide-gray-100">
@@ -106,71 +103,41 @@
                            <td class="px-4 py-3 font-medium text-gray-900">
                               {{ entry.workshops?.exercise?.name || 'Atelier inconnu' }}
                            </td>
-                           <!-- Série -->
-                           <td v-if="roomConfig?.notebook_visible_series" class="px-4 py-3 text-center">
-                              <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">{{ entry.series_number || 1 }}</span>
-                           </td>
-                           <!-- Niveau -->
-                           <td class="px-4 py-3 text-center">
-                              <template v-if="roomConfig?.notebook_visible_level !== false">
-                                 <span v-if="entry.level_selected" class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-bold">{{ entry.level_selected }}</span>
-                                 <span v-else class="text-gray-400">--</span>
-                              </template>
-                              <span v-else class="text-gray-300">--</span>
-                           </td>
-                           <!-- Charges -->
-                           <td v-if="roomConfig?.notebook_visible_charges" class="px-4 py-3 text-center">
-                              <span v-if="entry.charge" class="font-medium">{{ entry.charge }} kg</span>
+                           <td v-if="roomConfig?.notebook_visible_level !== false" class="px-4 py-3 text-center">
+                              <span v-if="entry.level_selected" class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-bold">{{ entry.level_selected }}</span>
                               <span v-else class="text-gray-400">--</span>
                            </td>
-                           <!-- Répétitions -->
-                           <td v-if="roomConfig?.notebook_visible_reps" class="px-4 py-3 text-center">
-                              <span v-if="entry.repetitions" class="font-medium">{{ entry.repetitions }}</span>
-                              <span v-else class="text-gray-400">--</span>
+                           <td v-if="roomConfig?.notebook_visible_placement !== false" class="px-4 py-3 text-center">
+                              <span :class="entry.placement_errors === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'">
+                                 {{ entry.placement_errors === 0 ? 'Ok' : entry.placement_errors }}
+                              </span>
                            </td>
-                           <td class="px-4 py-3 text-center">
-                              <template v-if="roomConfig?.notebook_visible_placement !== false">
-                                 <span :class="entry.placement_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                    {{ entry.placement_errors === 0 ? 'BON' : 'PAS BON' }}
-                                 </span>
-                              </template>
-                              <span v-else class="text-gray-300">--</span>
+                           <td v-if="roomConfig?.notebook_visible_tempo !== false" class="px-4 py-3 text-center">
+                              <span :class="entry.tempo_errors === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'">
+                                 {{ entry.tempo_errors === 0 ? 'Ok' : entry.tempo_errors }}
+                              </span>
                            </td>
-                           <td class="px-4 py-3 text-center">
-                              <template v-if="roomConfig?.notebook_visible_tempo !== false">
-                                 <span :class="entry.tempo_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                    {{ entry.tempo_errors === 0 ? 'BON' : 'PAS BON' }}
-                                 </span>
-                              </template>
-                              <span v-else class="text-gray-300">--</span>
+                           <td v-if="roomConfig?.notebook_visible_respiration !== false" class="px-4 py-3 text-center">
+                              <span :class="entry.respiration_errors === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'">
+                                 {{ entry.respiration_errors === 0 ? 'Ok' : entry.respiration_errors }}
+                              </span>
                            </td>
-                           <td class="px-4 py-3 text-center">
-                              <template v-if="roomConfig?.notebook_visible_respiration !== false">
-                                 <span :class="entry.respiration_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                    {{ entry.respiration_errors === 0 ? 'BON' : 'PAS BON' }}
-                                 </span>
-                              </template>
-                              <span v-else class="text-gray-300">--</span>
-                           </td>
-                           <td class="px-4 py-3 text-center">
-                              <template v-if="roomConfig?.notebook_visible_feeling !== false">
-                                 <span v-if="entry.feeling" 
-                                   class="px-2 py-1 rounded text-xs font-bold"
-                                   :class="{
-                                     'bg-emerald-100 text-emerald-800': entry.feeling <= 2,
-                                     'bg-amber-100 text-amber-800': entry.feeling >= 3 && entry.feeling <= 4,
-                                     'bg-red-100 text-red-800': entry.feeling == 5
-                                   }"
-                                 >
-                                   {{ entry.feeling }}/5
-                                 </span>
-                                 <span v-else class="text-gray-400">--</span>
-                              </template>
+                           <td v-if="roomConfig?.notebook_visible_feeling !== false" class="px-4 py-3 text-center">
+                              <span v-if="entry.feeling" 
+                                class="px-2 py-1 rounded text-xs font-bold"
+                                :class="{
+                                  'bg-emerald-100 text-emerald-800': entry.feeling <= 2,
+                                  'bg-amber-100 text-amber-800': entry.feeling >= 3 && entry.feeling <= 4,
+                                  'bg-red-100 text-red-800': entry.feeling == 5
+                                }"
+                              >
+                                {{ entry.feeling }}/5
+                              </span>
                               <span v-else class="text-gray-300">--</span>
                            </td>
                         </tr>
                         <tr v-if="notebookData.length === 0">
-                           <td colspan="9" class="px-4 py-8 text-center text-gray-500 italic">Aucune donnée saisie pour cette séance.</td>
+                           <td colspan="5" class="px-4 py-8 text-center text-gray-500 italic">Aucune donnée saisie pour cette séance.</td>
                         </tr>
                      </tbody>
                   </table>
@@ -194,10 +161,7 @@
                         <thead class="text-xs text-indigo-700 uppercase bg-indigo-50 border-b border-indigo-100">
                            <tr>
                               <th class="px-3 py-2">Atelier</th>
-                              <th v-if="roomConfig?.notebook_visible_series" class="px-3 py-2 text-center">Série</th>
                               <th class="px-3 py-2 text-center">Niveau</th>
-                              <th v-if="roomConfig?.notebook_visible_charges" class="px-3 py-2 text-center">Charges</th>
-                              <th v-if="roomConfig?.notebook_visible_reps" class="px-3 py-2 text-center">Reps</th>
                               <th class="px-3 py-2 text-center">Placement</th>
                               <th class="px-3 py-2 text-center">Tempo</th>
                               <th class="px-3 py-2 text-center">Respiration</th>
@@ -209,67 +173,37 @@
                               <td class="px-3 py-2 text-gray-700 font-medium text-xs truncate max-w-[150px]">
                                  {{ entry.workshops?.exercise?.name || 'Inconnu' }}
                               </td>
-                              <!-- Série -->
-                              <td v-if="roomConfig?.notebook_visible_series" class="px-3 py-2 text-center">
-                                 <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs font-bold">{{ entry.series_number || 1 }}</span>
-                              </td>
-                              <!-- Niveau -->
-                              <td class="px-3 py-2 text-center">
-                                 <template v-if="roomConfig?.notebook_visible_level !== false">
-                                    <span v-if="entry.level_selected" class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs font-bold">{{ entry.level_selected }}</span>
-                                    <span v-else class="text-gray-400 text-xs">--</span>
-                                 </template>
-                                 <span v-else class="text-gray-300 text-xs">--</span>
-                              </td>
-                              <!-- Charges -->
-                              <td v-if="roomConfig?.notebook_visible_charges" class="px-3 py-2 text-center">
-                                 <span v-if="entry.charge" class="font-medium text-xs">{{ entry.charge }} kg</span>
-                                 <span v-else class="text-gray-400 text-xs">--</span>
-                              </td>
-                              <!-- Répétitions -->
-                              <td v-if="roomConfig?.notebook_visible_reps" class="px-3 py-2 text-center">
-                                 <span v-if="entry.repetitions" class="font-medium text-xs">{{ entry.repetitions }}</span>
-                                 <span v-else class="text-gray-400 text-xs">--</span>
-                              </td>
-                              <td class="px-3 py-2 text-center">
-                                 <template v-if="roomConfig?.notebook_visible_placement !== false">
-                                    <span :class="entry.placement_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                       {{ entry.placement_errors === 0 ? 'BON' : 'PAS BON' }}
-                                    </span>
-                                 </template>
-                                 <span v-else class="text-gray-300 text-xs">--</span>
-                              </td>
-                              <td class="px-3 py-2 text-center">
-                                 <template v-if="roomConfig?.notebook_visible_tempo !== false">
-                                    <span :class="entry.tempo_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                       {{ entry.tempo_errors === 0 ? 'BON' : 'PAS BON' }}
-                                    </span>
-                                 </template>
-                                 <span v-else class="text-gray-300 text-xs">--</span>
-                              </td>
-                              <td class="px-3 py-2 text-center">
-                                 <template v-if="roomConfig?.notebook_visible_respiration !== false">
-                                    <span :class="entry.respiration_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                       {{ entry.respiration_errors === 0 ? 'BON' : 'PAS BON' }}
-                                    </span>
-                                 </template>
-                                 <span v-else class="text-gray-300 text-xs">--</span>
-                              </td>
-                              <td class="px-3 py-2 text-center">
-                                 <template v-if="roomConfig?.notebook_visible_feeling !== false">
-                                    <span v-if="entry.feeling" class="font-bold text-xs"
-                                      :class="{
-                                        'text-emerald-600': entry.feeling <= 2,
-                                        'text-amber-600': entry.feeling >= 3 && entry.feeling <= 4,
-                                        'text-red-600': entry.feeling == 5
-                                      }"
-                                    >
-                                      {{ entry.feeling }}/5
-                                    </span>
-                                    <span v-else class="text-gray-300">--</span>
-                                 </template>
-                                 <span v-else class="text-gray-300 text-xs">--</span>
-                              </td>
+                               <td class="px-3 py-2 text-center">
+                                  <span v-if="entry.level_selected" class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs font-bold">{{ entry.level_selected }}</span>
+                                  <span v-else class="text-gray-400 text-xs">--</span>
+                               </td>
+                               <td class="px-3 py-2 text-center">
+                                  <span :class="entry.placement_errors === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'">
+                                     {{ entry.placement_errors === 0 ? 'Ok' : entry.placement_errors }}
+                                  </span>
+                               </td>
+                               <td class="px-3 py-2 text-center">
+                                  <span :class="entry.tempo_errors === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'">
+                                     {{ entry.tempo_errors === 0 ? 'Ok' : entry.tempo_errors }}
+                                  </span>
+                               </td>
+                               <td class="px-3 py-2 text-center">
+                                 <span :class="entry.respiration_errors === 0 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'">
+                                     {{ entry.respiration_errors === 0 ? 'Ok' : entry.respiration_errors }}
+                                  </span>
+                               </td>
+                               <td class="px-3 py-2 text-center">
+                                  <span v-if="entry.feeling" class="font-bold text-xs"
+                                    :class="{
+                                      'text-emerald-600': entry.feeling <= 2,
+                                      'text-amber-600': entry.feeling >= 3 && entry.feeling <= 4,
+                                      'text-red-600': entry.feeling == 5
+                                    }"
+                                  >
+                                    {{ entry.feeling }}/5
+                                  </span>
+                                  <span v-else class="text-gray-300">-</span>
+                               </td>
                            </tr>
                         </tbody>
                      </table>
@@ -373,7 +307,7 @@ const selectStudent = async (student) => {
    // We need to match where name LIKE ...
    const { data } = await supabase
       .from('students')
-      .select('id, room_id, created_at, teacher_note, rooms(code, name, notebook_visible_level, notebook_visible_placement, notebook_visible_tempo, notebook_visible_respiration, notebook_visible_feeling, notebook_visible_series, notebook_visible_charges, notebook_visible_reps)')
+      .select('id, created_at, teacher_note, rooms(code, name)')
       .ilike('name', `%${student.name}%`)
       .order('created_at', { ascending: false })
 
@@ -385,18 +319,15 @@ const selectStudent = async (student) => {
 const loadNotebook = async (session) => {
    selectedSession.value = session
    
-   // Use room config from session (already loaded with students)
-   if (session.rooms) {
-      roomConfig.value = {
-         notebook_visible_level: session.rooms.notebook_visible_level,
-         notebook_visible_placement: session.rooms.notebook_visible_placement,
-         notebook_visible_tempo: session.rooms.notebook_visible_tempo,
-         notebook_visible_respiration: session.rooms.notebook_visible_respiration,
-         notebook_visible_feeling: session.rooms.notebook_visible_feeling,
-         notebook_visible_series: session.rooms.notebook_visible_series,
-         notebook_visible_charges: session.rooms.notebook_visible_charges,
-         notebook_visible_reps: session.rooms.notebook_visible_reps
-      }
+   // Fetch room config for column visibility
+   const { data: roomData } = await supabase
+      .from('rooms')
+      .select('notebook_visible_level, notebook_visible_placement, notebook_visible_tempo, notebook_visible_respiration, notebook_visible_feeling')
+      .eq('id', session.room_id)
+      .single()
+   
+   if (roomData) {
+      roomConfig.value = roomData
    } else {
       // Default all visible if no config found
       roomConfig.value = {
@@ -404,10 +335,7 @@ const loadNotebook = async (session) => {
          notebook_visible_placement: true,
          notebook_visible_tempo: true,
          notebook_visible_respiration: true,
-         notebook_visible_feeling: true,
-         notebook_visible_series: true,
-         notebook_visible_charges: true,
-         notebook_visible_reps: true
+         notebook_visible_feeling: true
       }
    }
    
@@ -454,33 +382,13 @@ const deleteStudent = async (student) => {
      .or(`performer_name.eq.${student.name},coach_name.eq.${student.name}`)
 
    // Delete all student entries matching this name
-   // Smart delete: Fetch rows first to handle groups correctly
-   const { data: strategies } = await supabase
-      .from('students')
-      .select('*')
-      .ilike('name', `%${student.name}%`)
+   const { error: studentError } = await supabase
+     .from('students')
+     .delete()
+     .ilike('name', `%${student.name}%`)
 
-   if (strategies) {
-      for (const row of strategies) {
-         const names = row.name.split(' & ')
-         if (!names.map(n => n.trim()).includes(student.name.trim())) continue
-
-         const newNames = names.filter(n => n.trim() !== student.name.trim())
-         
-         if (newNames.length === 0) {
-            // No one left, delete the row
-            await supabase.from('students').delete().eq('id', row.id)
-         } else {
-            // Updates with remaining students
-            await supabase.from('students').update({ 
-               name: newNames.join(' & ') 
-            }).eq('id', row.id)
-         }
-      }
-   }
-
-   if (notebookError) {
-      alert("Erreur lors de la suppression des carnets : " + notebookError.message)
+   if (notebookError || studentError) {
+      alert("Erreur lors de la suppression : " + (notebookError?.message || studentError?.message))
       return
    }
 

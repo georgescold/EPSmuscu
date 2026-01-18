@@ -10,5 +10,6 @@ export const MUSCLE_LIST = [
     'Abdominaux',
     'Fessiers',
     'Lombaires',
-    'Trapèzes'
+    'Trapèzes',
+    'Cardio'
 ]

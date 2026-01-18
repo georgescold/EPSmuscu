@@ -338,7 +338,7 @@
                   </div>
                   <div class="flex-1">
                      <div class="font-bold text-gray-800 text-sm">{{ phase.name }}</div>
-                      <div class="text-xs text-gray-500">{{ formatDuration(phase.duration) }} • {{ getColorLabel(phase.color) }}{{ phase.sound && phase.sound !== 'none' ? ' • ' + getSoundIcon(phase.sound) : '' }}</div>
+                      <div class="text-xs text-gray-500">{{ formatDuration(phase.duration) }} • {{ getColorLabel(phase.color) }}{{ phase.sound && phase.sound !== 'none' ? ' • ' + getSoundIcon(phase.sound) : '' }}{{ phase.action === 'workshop_change' ? ' • 🔄' : '' }}</div>
                   </div>
                   <button @click="removePhase(idx)" class="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                      <Trash2 :size="16" />
@@ -402,6 +402,12 @@
                          <button type="button" v-for="sound in timerSounds" :key="sound.value" @click.prevent="selectSound(sound.value)" class="py-2 px-2 rounded-lg border-2 transition-all text-center" :class="newPhase.sound === sound.value ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'" :title="sound.label"><span class="text-lg">{{ sound.icon }}</span><span class="block text-[10px] font-medium mt-0.5">{{ sound.label }}</span></button>
                       </div>
                    </div>
+                   <div>
+                      <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Action de fin</label>
+                      <div class="grid grid-cols-2 gap-1">
+                         <button type="button" v-for="action in timerActions" :key="action.value" @click.prevent="newPhase.action = action.value" class="py-2 px-2 rounded-lg border-2 transition-all text-center" :class="newPhase.action === action.value ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'" :title="action.label"><span class="text-lg">{{ action.icon }}</span><span class="block text-[10px] font-medium mt-0.5">{{ action.label }}</span></button>
+                      </div>
+                   </div>
                   <button 
                      @click="addPhase"
                      :disabled="!isValidPhase"
@@ -424,13 +430,48 @@
             </h3>
             <p class="text-gray-500 text-sm mb-6">Choisissez les colonnes visibles par les élèves dans leur carnet.</p>
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               <div v-for="(label, key) in notebookConfigLabels" :key="key" class="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <span class="font-bold text-gray-700">{{ label }}</span>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" v-model="notebookConfig[key]" class="sr-only peer" @change="updateRoomConfig">
-                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                  </label>
+            <!-- Global Enable Toggle -->
+            <div class="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-200 mb-6">
+               <div>
+                  <span class="font-bold text-indigo-900 block">Activer le Carnet d'entraînement</span>
+                  <span class="text-xs text-indigo-700">Si désactivé, les élèves verront uniquement la fiche atelier.</span>
+               </div>
+               <label class="relative inline-flex items-center cursor-pointer">
+                 <input type="checkbox" v-model="notebookConfig.notebook_enabled" class="sr-only peer" @change="updateRoomConfig">
+                 <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+               </label>
+            </div>
+
+            <div v-if="notebookConfig.notebook_enabled" class="animate-in slide-in-from-top-4 duration-300">
+               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div v-for="(label, key) in notebookConfigLabels" :key="key" class="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                     <span class="font-bold text-gray-700">{{ label }}</span>
+                     <label class="relative inline-flex items-center cursor-pointer">
+                       <input type="checkbox" v-model="notebookConfig[key]" class="sr-only peer" @change="updateRoomConfig">
+                       <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                     </label>
+                  </div>
+               </div>
+               
+               <!-- Series Count Selector -->
+               <div v-if="notebookConfig.notebook_visible_series" class="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-200">
+                  <div class="flex items-center justify-between">
+                     <div>
+                        <span class="font-bold text-purple-800">Nombre de séries par atelier</span>
+                        <p class="text-purple-600 text-xs">Crée X lignes par atelier dans le carnet</p>
+                     </div>
+                     <div class="flex items-center space-x-3">
+                        <button 
+                           @click="notebookConfig.notebook_series_count = Math.max(1, notebookConfig.notebook_series_count - 1); updateRoomConfig()"
+                           class="w-8 h-8 rounded-full bg-purple-200 text-purple-800 font-bold hover:bg-purple-300 transition-colors"
+                        >-</button>
+                        <span class="font-mono font-bold text-xl text-purple-800 min-w-[30px] text-center">{{ notebookConfig.notebook_series_count }}</span>
+                        <button 
+                           @click="notebookConfig.notebook_series_count = Math.min(10, notebookConfig.notebook_series_count + 1); updateRoomConfig()"
+                           class="w-8 h-8 rounded-full bg-purple-200 text-purple-800 font-bold hover:bg-purple-300 transition-colors"
+                        >+</button>
+                     </div>
+                  </div>
                </div>
             </div>
          </div>
@@ -443,7 +484,10 @@
                  <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                     <tr>
                        <th class="px-4 py-3 rounded-l-lg">Atelier (Fixe)</th>
+                       <th v-if="notebookConfig.notebook_visible_series" class="px-4 py-3">Séries</th>
                        <th v-if="notebookConfig.notebook_visible_level" class="px-4 py-3">Niveau</th>
+                       <th v-if="notebookConfig.notebook_visible_charges" class="px-4 py-3">Charges</th>
+                       <th v-if="notebookConfig.notebook_visible_reps" class="px-4 py-3">Répétitions</th>
                        <th v-if="notebookConfig.notebook_visible_placement" class="px-4 py-3">Placement</th>
                        <th v-if="notebookConfig.notebook_visible_tempo" class="px-4 py-3">Tempo</th>
                        <th v-if="notebookConfig.notebook_visible_respiration" class="px-4 py-3">Respiration</th>
@@ -605,7 +649,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../../supabase'
 import { MUSCLE_LIST } from '../../constants/muscles'
-import { calculateTimerState, TIMER_COLORS, TIMER_SOUNDS, playTimerSound, unlockAudio } from '../../utils/timer'
+import { calculateTimerState, TIMER_COLORS, TIMER_SOUNDS, TIMER_ACTIONS, playTimerSound, unlockAudio } from '../../utils/timer'
 import { ArrowLeft, Plus, Dumbbell, Trash2, X, Loader2, Users, Settings, Pencil, Check, Clock, Play, Pause, Square, Trophy, Copy } from 'lucide-vue-next'
 
 
@@ -654,11 +698,16 @@ const newWorkshop = ref({
 })
 
 const notebookConfig = ref({
+  notebook_enabled: true,
   notebook_visible_level: true,
   notebook_visible_placement: true,
   notebook_visible_tempo: true,
   notebook_visible_respiration: true,
-  notebook_visible_feeling: true
+  notebook_visible_feeling: true,
+  notebook_visible_series: false,
+  notebook_visible_charges: false,
+  notebook_visible_reps: false,
+  notebook_series_count: 4
 })
 
 const notebookConfigLabels = {
@@ -666,7 +715,10 @@ const notebookConfigLabels = {
   notebook_visible_placement: 'Colonne Placement',
   notebook_visible_tempo: 'Colonne Tempo',
   notebook_visible_respiration: 'Colonne Respiration',
-  notebook_visible_feeling: 'Colonne Ressentis (RPE)'
+  notebook_visible_feeling: 'Colonne Ressentis (RPE)',
+  notebook_visible_series: 'Colonne Séries',
+  notebook_visible_charges: 'Colonne Charges',
+  notebook_visible_reps: 'Colonne Répétitions'
 }
 
 const fetchRoomDetails = async () => {
@@ -675,11 +727,16 @@ const fetchRoomDetails = async () => {
     roomCode.value = data.code
     roomName.value = data.name
     notebookConfig.value = {
+      notebook_enabled: data.notebook_enabled ?? true,
       notebook_visible_level: data.notebook_visible_level ?? true,
       notebook_visible_placement: data.notebook_visible_placement ?? true,
       notebook_visible_tempo: data.notebook_visible_tempo ?? true,
       notebook_visible_respiration: data.notebook_visible_respiration ?? true,
       notebook_visible_feeling: data.notebook_visible_feeling ?? true,
+      notebook_visible_series: data.notebook_visible_series ?? false,
+      notebook_visible_charges: data.notebook_visible_charges ?? false,
+      notebook_visible_reps: data.notebook_visible_reps ?? false,
+      notebook_series_count: data.notebook_series_count ?? 4,
     }
     
     // Timer Config & Status Load
@@ -691,6 +748,7 @@ const fetchRoomDetails = async () => {
 // Timer Logic
 const timerColors = TIMER_COLORS
 const timerSounds = TIMER_SOUNDS
+const timerActions = TIMER_ACTIONS
 const getSoundIcon = (sound) => TIMER_SOUNDS.find(s => s.value === sound)?.icon || ''
 const selectSound = (soundValue) => { newPhase.value.sound = soundValue; if (soundValue !== 'none') { unlockAudio(); playTimerSound(soundValue); } }
 const timerConfig = ref({ repeats: 1, phases: [] })
@@ -698,7 +756,7 @@ const timerState = ref({ state: 'idle', start_timestamp: null, paused_timestamp:
 const localTimerCalc = ref({})
 const configChanged = ref(false)
 
-const newPhase = ref({ name: 'Travail', min: 0, sec: 0, color: 'emerald', sound: 'none' })
+const newPhase = ref({ name: 'Travail', min: 0, sec: 0, color: 'emerald', sound: 'none', action: 'none' })
 
 const isValidPhase = computed(() => {
    return newPhase.value.name.length > 0 && (newPhase.value.min > 0 || newPhase.value.sec > 0)
@@ -710,12 +768,13 @@ const addPhase = () => {
       id: crypto.randomUUID(),
       name: newPhase.value.name,
       duration: duration,
-       color: newPhase.value.color,
-       sound: newPhase.value.sound
+      color: newPhase.value.color,
+      sound: newPhase.value.sound,
+      action: newPhase.value.action || 'none'
    })
    configChanged.value = true
    // Reset form (keep name/color for rapid entry?)
-   newPhase.value = { name: 'Repos', min: 0, sec: 30, color: 'red', sound: 'none' }
+   newPhase.value = { name: 'Repos', min: 0, sec: 30, color: 'red', sound: 'none', action: 'none' }
 }
 
 const removePhase = (idx) => {
@@ -934,45 +993,32 @@ const subscribeToStudents = () => {
 }
 
 const deleteStudent = async (student) => {
-  // Removing confirmation as requested
-  
-  // console.log("Attempting to delete student:", student)
-
   const originalRow = students.value.find(s => s.id === student.originalId)
-  if (!originalRow) {
-    console.error("Could not find original student row:", student.originalId)
-    return
-  }
+  if (!originalRow) return
 
   const names = originalRow.name.split(' & ')
   // Ensure precise matching by trimming both sides
-  const newNames = names.filter(n => n.trim() !== student.realName.trim())
+  const nameToRemove = student.realName.trim()
+  const newNames = names.filter(n => n.trim() !== nameToRemove)
   
-  // console.log("Current names:", names)
-  // console.log("Names after removal:", newNames)
-
   if (newNames.length === 0) {
     // No students left in this group, delete the row
-    // console.log("Deleting entire row...")
     const { error } = await supabase.from('students').delete().eq('id', student.originalId)
     if (error) {
       console.error("Error deleting student row:", error)
       alert("Erreur lors de la suppression : " + error.message)
     } else {
-      // console.log("Deleted successfully. Refreshing list...")
-      await fetchStudents() // Force refresh
+      await fetchStudents()
     }
   } else {
-    // Update with remaining students
-    const newNameStr = newNames.join(' & ')
-    // console.log("Updating row with:", newNameStr)
+    // Update with remaining students - trim each name when joining
+    const newNameStr = newNames.map(n => n.trim()).join(' & ')
     const { error } = await supabase.from('students').update({ name: newNameStr }).eq('id', student.originalId)
     if (error) {
        console.error("Error updating student names:", error)
        alert("Erreur lors de la mise à jour : " + error.message)
     } else {
-       // console.log("Updated successfully. Refreshing list...")
-       await fetchStudents() // Force refresh
+       await fetchStudents()
     }
   }
 }

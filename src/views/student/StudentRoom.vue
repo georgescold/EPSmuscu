@@ -376,12 +376,25 @@
                      <h4 class="font-bold text-gray-900 leading-tight">{{ workshop.exercises?.name }}</h4>
                   </div>
 
-                     <div class="grid grid-cols-2 gap-3 mb-3">
+                  <!-- Series Loop (or single row if no series) -->
+                  <div 
+                     v-for="seriesNum in (hasSeries ? seriesCount : 1)" 
+                     :key="seriesNum"
+                     class="bg-gray-50 rounded-lg p-3 mb-2 border border-gray-200"
+                     :class="{ 'border-l-4 border-l-purple-400': hasSeries }"
+                  >
+                     <!-- Series Number Badge -->
+                     <div v-if="hasSeries" class="flex items-center mb-2">
+                        <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Série {{ seriesNum }}</span>
+                     </div>
+
+                     <div class="grid grid-cols-2 gap-3">
+                        <!-- Niveau -->
                         <div v-if="roomConfig?.notebook_visible_level !== false" class="col-span-2">
                            <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Niveau</label>
                            <select 
-                             v-model="getEntry(workshop.id).level_selected" 
-                             @change="updateEntry(workshop.id)"
+                             v-model="getEntry(workshop.id, seriesNum).level_selected" 
+                             @change="updateEntry(workshop.id, seriesNum)"
                              class="w-full text-sm bg-white border border-gray-300 rounded-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-bold text-gray-800"
                            >
                               <option value="">-- Choisir --</option>
@@ -391,40 +404,71 @@
                            </select>
                         </div>
 
+                        <!-- Charges -->
+                        <div v-if="hasCharges">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Charges</label>
+                           <div class="flex items-center">
+                              <input 
+                                type="text" 
+                                v-model="getEntry(workshop.id, seriesNum).charge"
+                                @blur="updateEntry(workshop.id, seriesNum)"
+                                placeholder="0"
+                                class="w-16 text-sm bg-white border border-gray-300 rounded-l-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-bold text-center"
+                              />
+                              <span class="bg-gray-200 text-gray-600 px-2 py-2 border border-l-0 border-gray-300 rounded-r-lg text-sm font-medium">kg</span>
+                           </div>
+                        </div>
+
+                        <!-- Répétitions -->
+                        <div v-if="hasReps">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Répétitions</label>
+                           <input 
+                             type="text" 
+                             v-model="getEntry(workshop.id, seriesNum).repetitions"
+                             @blur="updateEntry(workshop.id, seriesNum)"
+                             placeholder="10"
+                             class="w-full text-sm bg-white border border-gray-300 rounded-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-bold text-center"
+                           />
+                        </div>
+
+                        <!-- Placement -->
                         <div v-if="workshop.show_placement">
                            <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Placement</label>
                            <CounterInput 
-                             v-model="getEntry(workshop.id).placement_errors"
-                             @update:modelValue="updateEntry(workshop.id)" 
+                             v-model="getEntry(workshop.id, seriesNum).placement_errors"
+                             @update:modelValue="updateEntry(workshop.id, seriesNum)" 
                            />
                         </div>
 
+                        <!-- Tempo -->
                         <div v-if="workshop.show_tempo">
                            <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Tempo</label>
                            <CounterInput 
-                             v-model="getEntry(workshop.id).tempo_errors"
-                             @update:modelValue="updateEntry(workshop.id)" 
+                             v-model="getEntry(workshop.id, seriesNum).tempo_errors"
+                             @update:modelValue="updateEntry(workshop.id, seriesNum)" 
                            />
                         </div>
 
+                        <!-- Respiration -->
                         <div v-if="workshop.show_respiration">
                            <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Respiration</label>
                            <CounterInput 
-                             v-model="getEntry(workshop.id).respiration_errors"
-                             @update:modelValue="updateEntry(workshop.id)" 
+                             v-model="getEntry(workshop.id, seriesNum).respiration_errors"
+                             @update:modelValue="updateEntry(workshop.id, seriesNum)" 
                            />
                         </div>
 
-                     <div v-if="roomConfig?.notebook_visible_feeling !== false" class="col-span-2">
-                        <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Ressentis</label>
+                        <!-- Ressentis -->
+                        <div v-if="roomConfig?.notebook_visible_feeling !== false" class="col-span-2">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Ressentis</label>
                            <select 
-                             v-model="getEntry(workshop.id).feeling" 
-                             @change="updateEntry(workshop.id)"
+                             v-model="getEntry(workshop.id, seriesNum).feeling" 
+                             @change="updateEntry(workshop.id, seriesNum)"
                              class="w-full text-sm bg-white border border-gray-300 rounded-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-medium"
                              :class="{
-                               'text-emerald-700 bg-emerald-50 border-emerald-200': getEntry(workshop.id).feeling == 1 || getEntry(workshop.id).feeling == 2,
-                               'text-amber-700 bg-amber-50 border-amber-200': getEntry(workshop.id).feeling == 3 || getEntry(workshop.id).feeling == 4,
-                               'text-red-700 bg-red-50 border-red-200': getEntry(workshop.id).feeling == 5
+                               'text-emerald-700 bg-emerald-50 border-emerald-200': getEntry(workshop.id, seriesNum).feeling == 1 || getEntry(workshop.id, seriesNum).feeling == 2,
+                               'text-amber-700 bg-amber-50 border-amber-200': getEntry(workshop.id, seriesNum).feeling == 3 || getEntry(workshop.id, seriesNum).feeling == 4,
+                               'text-red-700 bg-red-50 border-red-200': getEntry(workshop.id, seriesNum).feeling == 5
                              }"
                            >
                               <option :value="null">--</option>
@@ -434,6 +478,7 @@
                               <option :value="4">4 - Effort difficile</option>
                               <option :value="5">5 - Effort maximal</option>
                            </select>
+                        </div>
                      </div>
                   </div>
                </div>
@@ -444,93 +489,137 @@
                   <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
                      <tr>
                         <th class="px-4 py-3 min-w-[120px]">Atelier</th>
+                        <th v-if="hasSeries" class="px-2 py-3 min-w-[60px] text-center">Série</th>
                         <th v-if="roomConfig?.notebook_visible_level !== false" class="px-2 py-3 min-w-[100px] text-center">Niveau</th>
-                        <th v-if="hasPlacement" class="px-2 py-3 min-w-[100px] text-center">Placement</th>
-                        <th v-if="hasTempo" class="px-2 py-3 min-w-[100px] text-center">Tempo</th>
-                        <th v-if="hasRespiration" class="px-2 py-3 min-w-[100px] text-center">Respiration</th>
+                        <th v-if="hasCharges" class="px-2 py-3 min-w-[80px] text-center">Charges</th>
+                        <th v-if="hasReps" class="px-2 py-3 min-w-[80px] text-center">Reps</th>
+                        <th v-if="hasPlacement" class="px-2 py-3 min-w-[80px] text-center">Placement</th>
+                        <th v-if="hasTempo" class="px-2 py-3 min-w-[80px] text-center">Tempo</th>
+                        <th v-if="hasRespiration" class="px-2 py-3 min-w-[80px] text-center">Respiration</th>
                         <th v-if="roomConfig?.notebook_visible_feeling !== false" class="px-2 py-3 min-w-[120px] text-center">Ressentis</th>
                      </tr>
                   </thead>
                   <tbody>
-                     <tr v-for="workshop in orderedWorkshops" :key="workshop.id" class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                        <!-- Workshop Name -->
-                        <td class="px-4 py-3 font-medium text-gray-900">
-                           <div class="flex items-center space-x-2">
-                             <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs border border-emerald-200">
-                               {{ workshops.findIndex(w => w.id === workshop.id) + 1 }}
-                             </div>
-                             <span>{{ workshop.exercises?.name }}</span>
-                           </div>
-                        </td>
-
-                        <!-- Level -->
-                        <td v-if="roomConfig?.notebook_visible_level !== false" class="px-2 py-3 text-center">
-                           <select 
-                             v-model="getEntry(workshop.id).level_selected" 
-                             @change="updateEntry(workshop.id)"
-                             class="w-full text-xs bg-white border border-gray-300 rounded px-1 py-1 focus:ring-1 focus:ring-emerald-500"
+                     <template v-for="workshop in orderedWorkshops" :key="workshop.id">
+                        <tr 
+                           v-for="seriesNum in (hasSeries ? seriesCount : 1)" 
+                           :key="`${workshop.id}_${seriesNum}`"
+                           class="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                           :class="{ 'bg-purple-50/30': hasSeries && seriesNum % 2 === 0 }"
+                        >
+                           <!-- Workshop Name (only on first series row, with rowspan) -->
+                           <td 
+                              v-if="seriesNum === 1" 
+                              :rowspan="hasSeries ? seriesCount : 1"
+                              class="px-4 py-3 font-medium text-gray-900 align-top border-r border-gray-100"
                            >
-                              <option value="">--</option>
-                              <option value="Niveau 1">Niveau 1</option>
-                              <option value="Niveau 2">Niveau 2</option>
-                              <option value="Niveau 3">Niveau 3</option>
-                           </select>
-                        </td>
+                              <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs border border-emerald-200">
+                                  {{ workshops.findIndex(w => w.id === workshop.id) + 1 }}
+                                </div>
+                                <span>{{ workshop.exercises?.name }}</span>
+                              </div>
+                           </td>
 
-                        <!-- Placement -->
-                        <td v-if="hasPlacement" class="px-2 py-3">
-                           <div v-if="workshop.show_placement">
-                              <CounterInput 
-                                v-model="getEntry(workshop.id).placement_errors"
-                                @update:modelValue="updateEntry(workshop.id)" 
+                           <!-- Series Number -->
+                           <td v-if="hasSeries" class="px-2 py-2 text-center">
+                              <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">{{ seriesNum }}</span>
+                           </td>
+
+                           <!-- Level (only on first series row) -->
+                           <td v-if="roomConfig?.notebook_visible_level !== false" class="px-2 py-2 text-center">
+                              <select 
+                                v-model="getEntry(workshop.id, seriesNum).level_selected" 
+                                @change="updateEntry(workshop.id, seriesNum)"
+                                class="w-full text-xs bg-white border border-gray-300 rounded px-1 py-1 focus:ring-1 focus:ring-emerald-500"
+                              >
+                                 <option value="">--</option>
+                                 <option value="Niveau 1">Niveau 1</option>
+                                 <option value="Niveau 2">Niveau 2</option>
+                                 <option value="Niveau 3">Niveau 3</option>
+                              </select>
+                           </td>
+
+                           <!-- Charges -->
+                           <td v-if="hasCharges" class="px-2 py-2 text-center">
+                              <div class="flex items-center justify-center">
+                                 <input 
+                                   type="text" 
+                                   v-model="getEntry(workshop.id, seriesNum).charge"
+                                   @blur="updateEntry(workshop.id, seriesNum)"
+                                   placeholder="0"
+                                   class="w-12 text-xs bg-white border border-gray-300 rounded-l px-1 py-1 focus:ring-1 focus:ring-emerald-500 text-center"
+                                 />
+                                 <span class="bg-gray-200 text-gray-600 px-1 py-1 border border-l-0 border-gray-300 rounded-r text-xs">kg</span>
+                              </div>
+                           </td>
+
+                           <!-- Repetitions -->
+                           <td v-if="hasReps" class="px-2 py-2 text-center">
+                              <input 
+                                type="text" 
+                                v-model="getEntry(workshop.id, seriesNum).repetitions"
+                                @blur="updateEntry(workshop.id, seriesNum)"
+                                placeholder="10"
+                                class="w-16 text-xs bg-white border border-gray-300 rounded px-1 py-1 focus:ring-1 focus:ring-emerald-500 text-center"
                               />
-                           </div>
-                           <div v-else class="text-center text-gray-300">-</div>
-                        </td>
+                           </td>
 
-                        <!-- Tempo -->
-                        <td v-if="hasTempo" class="px-2 py-3">
-                           <div v-if="workshop.show_tempo">
-                              <CounterInput 
-                                v-model="getEntry(workshop.id).tempo_errors"
-                                @update:modelValue="updateEntry(workshop.id)" 
-                              />
-                           </div>
-                           <div v-else class="text-center text-gray-300">-</div>
-                        </td>
+                           <!-- Placement -->
+                           <td v-if="hasPlacement" class="px-2 py-2">
+                              <div v-if="workshop.show_placement">
+                                 <CounterInput 
+                                   v-model="getEntry(workshop.id, seriesNum).placement_errors"
+                                   @update:modelValue="updateEntry(workshop.id, seriesNum)" 
+                                 />
+                              </div>
+                              <div v-else class="text-center text-gray-300">-</div>
+                           </td>
 
-                        <!-- Respiration -->
-                        <td v-if="hasRespiration" class="px-2 py-3">
-                           <div v-if="workshop.show_respiration">
-                              <CounterInput 
-                                v-model="getEntry(workshop.id).respiration_errors"
-                                @update:modelValue="updateEntry(workshop.id)" 
-                              />
-                           </div>
-                           <div v-else class="text-center text-gray-300">-</div>
-                        </td>
+                           <!-- Tempo -->
+                           <td v-if="hasTempo" class="px-2 py-2">
+                              <div v-if="workshop.show_tempo">
+                                 <CounterInput 
+                                   v-model="getEntry(workshop.id, seriesNum).tempo_errors"
+                                   @update:modelValue="updateEntry(workshop.id, seriesNum)" 
+                                 />
+                              </div>
+                              <div v-else class="text-center text-gray-300">-</div>
+                           </td>
 
-                        <!-- Ressentis (RPE) -->
-                        <td v-if="roomConfig?.notebook_visible_feeling !== false" class="px-2 py-3">
-                           <select 
-                             v-model="getEntry(workshop.id).feeling" 
-                             @change="updateEntry(workshop.id)"
-                             class="w-full text-xs bg-white border border-gray-300 rounded px-1 py-1.5 focus:ring-1 focus:ring-emerald-500 font-medium"
-                             :class="{
-                               'text-emerald-700 bg-emerald-50 border-emerald-200': getEntry(workshop.id).feeling == 1 || getEntry(workshop.id).feeling == 2,
-                               'text-amber-700 bg-amber-50 border-amber-200': getEntry(workshop.id).feeling == 3 || getEntry(workshop.id).feeling == 4,
-                               'text-red-700 bg-red-50 border-red-200': getEntry(workshop.id).feeling == 5
-                             }"
-                           >
-                              <option :value="null">--</option>
-                              <option :value="1">1 - Très facile</option>
-                              <option :value="2">2 - Effort léger</option>
-                              <option :value="3">3 - Effort un peu dur</option>
-                              <option :value="4">4 - Effort difficile</option>
-                              <option :value="5">5 - Effort maximal</option>
-                           </select>
-                        </td>
-                     </tr>
+                           <!-- Respiration -->
+                           <td v-if="hasRespiration" class="px-2 py-2">
+                              <div v-if="workshop.show_respiration">
+                                 <CounterInput 
+                                   v-model="getEntry(workshop.id, seriesNum).respiration_errors"
+                                   @update:modelValue="updateEntry(workshop.id, seriesNum)" 
+                                 />
+                              </div>
+                              <div v-else class="text-center text-gray-300">-</div>
+                           </td>
+
+                           <!-- Ressentis -->
+                           <td v-if="roomConfig?.notebook_visible_feeling !== false" class="px-2 py-2">
+                              <select 
+                                v-model="getEntry(workshop.id, seriesNum).feeling" 
+                                @change="updateEntry(workshop.id, seriesNum)"
+                                class="w-full text-xs bg-white border border-gray-300 rounded px-1 py-1.5 focus:ring-1 focus:ring-emerald-500 font-medium"
+                                :class="{
+                                  'text-emerald-700 bg-emerald-50 border-emerald-200': getEntry(workshop.id, seriesNum).feeling == 1 || getEntry(workshop.id, seriesNum).feeling == 2,
+                                  'text-amber-700 bg-amber-50 border-amber-200': getEntry(workshop.id, seriesNum).feeling == 3 || getEntry(workshop.id, seriesNum).feeling == 4,
+                                  'text-red-700 bg-red-50 border-red-200': getEntry(workshop.id, seriesNum).feeling == 5
+                                }"
+                              >
+                                 <option :value="null">--</option>
+                                 <option :value="1">1 - Très facile</option>
+                                 <option :value="2">2 - Effort léger</option>
+                                 <option :value="3">3 - Effort un peu dur</option>
+                                 <option :value="4">4 - Effort difficile</option>
+                                 <option :value="5">5 - Effort maximal</option>
+                              </select>
+                           </td>
+                        </tr>
+                     </template>
                   </tbody>
                </table>
             </div>
@@ -553,6 +642,7 @@
       </button>
 
       <button 
+        v-if="roomConfig?.notebook_enabled ?? true"
         @click="activeTab = 'notebook'"
         class="flex flex-col items-center justify-center w-full h-full space-y-1.5 transition-colors duration-200"
         :class="activeTab === 'notebook' ? 'text-emerald-600 bg-emerald-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'"
@@ -677,7 +767,7 @@ import { supabase } from '../../supabase'
 import { calculateTimerState, TIMER_COLORS, playTimerSound, unlockAudio } from '../../utils/timer'
 import { useStudentStore } from '../../stores/student'
 import { MUSCLE_LIST } from '../../constants/muscles'
-import { User, Timer, Trophy, Loader2, CheckCircle2, LogOut, RotateCcw, Play, Pause, Info, X, FileText, ChevronDown, Target, ClipboardList, Shield, Clock, Wind, AlertTriangle } from 'lucide-vue-next'
+import { User, Timer, Trophy, Loader2, CheckCircle2, LogOut, RotateCcw, Play, Pause, Info, X, FileText, ChevronDown, Target, ClipboardList, Shield, Clock, Wind, AlertTriangle, Dumbbell } from 'lucide-vue-next'
 import CounterInput from '../../components/CounterInput.vue'
 
 const route = useRoute()
@@ -734,7 +824,11 @@ const storedPerformer = localStorage.getItem(`student_performer_${route.params.i
 const activePerformer = ref(storedPerformer || '') // The member tab currently selected
 
 watch(activePerformer, (val) => {
-  if (val) localStorage.setItem(`student_performer_${route.params.id}`, val)
+  if (val) {
+    localStorage.setItem(`student_performer_${route.params.id}`, val)
+    // Reload notebook entries when switching performer
+    fetchNotebookEntries()
+  }
 })
 
 // Timer Logic
@@ -751,6 +845,7 @@ const startWorkshopId = ref(null)
 const playingVideoId = ref(null)
 const feedbackState = ref({ isVisible: false, title: '', message: '', type: 'success' })
 const takenWorkshopIds = ref(new Set())
+// Workshop advancement is now controlled by 'workshop_change' action in timer phases
 
 const hasPlacement = computed(() => {
    return roomConfig.value?.notebook_visible_placement !== false
@@ -762,6 +857,22 @@ const hasTempo = computed(() => {
 
 const hasRespiration = computed(() => {
    return roomConfig.value?.notebook_visible_respiration !== false
+})
+
+const hasSeries = computed(() => {
+   return roomConfig.value?.notebook_visible_series === true
+})
+
+const hasCharges = computed(() => {
+   return roomConfig.value?.notebook_visible_charges === true
+})
+
+const hasReps = computed(() => {
+   return roomConfig.value?.notebook_visible_reps === true
+})
+
+const seriesCount = computed(() => {
+   return roomConfig.value?.notebook_series_count || 1
 })
 
 const orderedWorkshops = computed(() => {
@@ -981,9 +1092,8 @@ const submitWorkshop = async (workshop) => {
   
   solvedWorkshops.value.add(workshop.id)
 
-  // Auto advance
-  currentWorkshopIndex.value++ 
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  // Note: Workshop advancement is now handled by timer iteration changes, not validation
+  // This allows synchronized progression for all students based on timer cycles
 }
 
 const showFeedback = (title, message, type = 'success') => {
@@ -1029,37 +1139,48 @@ const getEmbedUrl = (url) => {
 }
 
 // Notebook Logic
-const getEntry = (workshopId) => {
-  if (!notebookEntries.value[workshopId]) {
-    notebookEntries.value[workshopId] = {
+const getEntry = (workshopId, seriesNumber = 1) => {
+  const key = `${workshopId}_${seriesNumber}`
+  if (!notebookEntries.value[key]) {
+    notebookEntries.value[key] = {
       level_selected: '',
       placement_errors: 0,
       tempo_errors: 0,
       respiration_errors: 0,
-      feeling: null
+      feeling: null,
+      charge: '',
+      repetitions: '',
+      series_number: seriesNumber
     }
   }
-  return notebookEntries.value[workshopId]
+  return notebookEntries.value[key]
 }
 
-const updateEntry = async (workshopId) => {
-  const entry = notebookEntries.value[workshopId]
-  if (!activePerformer.value) return
+const updateEntry = async (workshopId, seriesNumber = 1) => {
+  const key = `${workshopId}_${seriesNumber}`
+  const entry = notebookEntries.value[key]
+  if (!activePerformer.value || !entry) return
 
   const { error } = await supabase
     .from('notebook_entries')
     .upsert({
+      ...(entry.id ? { id: entry.id } : {}), // Update existing by ID if available
       student_id: studentInfo.value.id, // Group ID
       room_id: route.params.id,
       workshop_id: workshopId,
+      series_number: seriesNumber,
       performer_name: activePerformer.value, // Specific member
       coach_name: selectedCoach.value,
       level_selected: entry.level_selected,
       placement_errors: entry.placement_errors,
       tempo_errors: entry.tempo_errors,
       respiration_errors: entry.respiration_errors,
-      feeling: entry.feeling
-    }, { onConflict: 'student_id, workshop_id, performer_name' })
+      feeling: entry.feeling,
+      charge: entry.charge,
+      repetitions: entry.repetitions
+    }, { onConflict: 'student_id,workshop_id,series_number,performer_name' })
+    
+  console.log(`[DEBUG] Saved entry for ${key} (Series ${seriesNumber}) - Performer: ${activePerformer.value}`, { error })
     
   if (error) console.error("Error saving notebook:", error)
 }
@@ -1068,10 +1189,8 @@ const fetchNotebookEntries = async () => {
   if (!activePerformer.value || !studentInfo.value?.id) return 
   
   // Clear entries locally
-  // Note: ideally we might want to cache per performer but simpler to refetch/clear for now
   notebookEntries.value = {}
 
-  console.log("Fetching notebook for performer:", activePerformer.value)
   const { data: entries } = await supabase
     .from('notebook_entries')
     .select('*')
@@ -1079,14 +1198,18 @@ const fetchNotebookEntries = async () => {
     .eq('room_id', route.params.id)
     .eq('performer_name', activePerformer.value)
   
-  // Explicitly reset selectedCoach before populating (crucial for tab switching)
+  // Explicitly reset selectedCoach before populating
   selectedCoach.value = ''
 
   if (entries && entries.length > 0) {
     entries.forEach(e => {
-       if (notebookEntries.value) notebookEntries.value[e.workshop_id] = e
+       // Use workshopId_seriesNumber as key
+       const series = e.series_number || 1
+       const key = `${e.workshop_id}_${series}`
+       if (notebookEntries.value) notebookEntries.value[key] = e
        if (e.coach_name) selectedCoach.value = e.coach_name
     })
+    console.log(`[DEBUG] Loaded ${entries.length} entries for ${activePerformer.value}. Keys:`, Object.keys(notebookEntries.value))
   } else {
      // Fallback to local storage if no DB entries yet
      const savedCoach = localStorage.getItem(`coach_${studentInfo.value.id}_${activePerformer.value}`)
@@ -1209,6 +1332,10 @@ onMounted(async () => {
        if (data) {
           syncTimer(data)
           roomConfig.value = data
+          // Force switch if notebook disabled
+          if (data.notebook_enabled === false && activeTab.value === 'notebook') {
+             activeTab.value = 'workshops'
+          }
        }
        if (error) console.error("Error fetching room config:", error)
      } catch (e) {
@@ -1243,6 +1370,10 @@ onMounted(async () => {
           syncTimer(payload.new)
           // Also update config on change
           roomConfig.value = { ...roomConfig.value, ...payload.new }
+          // Force switch if notebook disabled
+          if (payload.new.notebook_enabled === false && activeTab.value === 'notebook') {
+             activeTab.value = 'workshops'
+          }
         }
       }
     )
@@ -1268,27 +1399,36 @@ onMounted(async () => {
         localTimerCalc.value.remainingInPhase -= 1000
         if (localTimerCalc.value.remainingInPhase < 0) localTimerCalc.value.remainingInPhase = 0
         
-        // Check if phase just ended (remaining hit 0)
-        if (localTimerCalc.value.remainingInPhase <= 0 && prevRemaining > 0 && prevPhaseIndex >= 0) {
-           const endedPhase = timerConfig.value.phases[prevPhaseIndex % timerConfig.value.phases.length]
+         // Check if phase just ended (remaining hit 0)
+         const phaseEndCondition = localTimerCalc.value.remainingInPhase <= 0 && prevRemaining > 0 && prevPhaseIndex >= 0
+         if (phaseEndCondition) {
+            const endedPhase = timerConfig.value.phases[prevPhaseIndex % timerConfig.value.phases.length]
            if (endedPhase?.sound && endedPhase.sound !== 'none') {
               console.log('Phase ended, playing sound:', endedPhase.sound)
               unlockAudio()
               playTimerSound(endedPhase.sound)
            }
+           
+           // Check for workshop_change action
+            // Advance to next workshop if configured
+            if (endedPhase?.action === 'workshop_change') {
+               currentWorkshopIndex.value++
+               window.scrollTo({ top: 0, behavior: 'smooth' })
+            }
         }
      } else if (localTimerCalc.value.isRunning) {
         localTimerCalc.value = calculateTimerState(timerConfig.value, timerState.value)
+        // Note: Workshop advancement is now handled by the 'workshop_change' action in phase config
      }
   }, 1000)
 
   syncPollingInterval = setInterval(async () => {
      // 1. Sync Room Data
      const { data } = await supabase.from('rooms').select('*').eq('id', roomId).single()
-     if (data) {
-        syncTimer(data)
-        roomConfig.value = { ...roomConfig.value, ...data }
-     }
+      if (data) {
+         syncTimer(data)
+         roomConfig.value = { ...roomConfig.value, ...data }
+      }
 
      // 2. Check Existence (Handle Reset/Kick)
      if (studentInfo.value?.id) {
