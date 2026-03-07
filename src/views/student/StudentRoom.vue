@@ -1,0 +1,1507 @@
+﻿<template>
+  <div v-if="studentInfo" class="min-h-screen bg-gray-50 pb-48 md:pb-24">
+    
+    <!-- Top Bar -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-40 px-3 py-2 md:py-3 shadow-md shadow-gray-200/50">
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        
+        <!-- Left: User Info -->
+        <div class="flex items-center space-x-2 min-w-0">
+           <div class="bg-gray-100 p-1.5 rounded text-gray-600 flex-shrink-0">
+             <User :size="16" />
+           </div>
+           <div class="flex flex-col min-w-0">
+              <span class="font-bold text-gray-900 text-xs md:text-sm leading-tight truncate block max-w-[100px] md:max-w-[200px]" :title="studentInfo?.name">
+                {{ studentInfo?.name }}
+              </span>
+              <button v-if="!startWorkshopId" @click="leaveSession" class="text-[10px] flex items-center text-red-500 hover:text-red-700 font-medium mt-0.5 hover:underline decoration-red-500/30 transition-all w-fit">
+                 <LogOut :size="10" class="mr-1" />
+                 Quitter
+              </button>
+           </div>
+        </div>
+        
+        <!-- Center: Global Timer (Prominent) -->
+        <div class="flex justify-center">
+          <div 
+            class="flex items-center space-x-2 md:space-x-3 rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 border-2 transition-all duration-300 shadow-sm"
+            :class="[
+              localTimerCalc.isFinished 
+                 ? 'bg-red-500 border-red-600 shadow-red-500/30 text-white animate-pulse' 
+                 : (!localTimerCalc.isRunning && !localTimerCalc.currentPhase 
+                    ? 'bg-gray-50 border-gray-200 text-gray-400' 
+                    : getTimerBgClass(localTimerCalc.currentPhase) + ' border-white/20 shadow-lg scale-105'
+                 )
+            ]"
+          >
+             <div class="relative">
+                <Clock :size="20" class="md:w-6 md:h-6 transition-transform duration-700" :class="[
+                   localTimerCalc.isFinished ? 'text-white' : (
+                      (!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'text-gray-400' : getTimerTextClass(localTimerCalc.currentPhase)
+                   ),
+                   localTimerCalc.isRunning ? 'animate-pulse' : ''
+                ]" />
+             </div>
+             
+             <div class="flex flex-col items-center leading-none" v-if="!localTimerCalc.isFinished">
+                <span class="text-[9px] md:text-[11px] uppercase font-black tracking-widest mb-0.5" 
+                   :class="(!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'text-gray-400' : getTimerTextClass(localTimerCalc.currentPhase).replace('text-', 'text-opacity-80 text-')"
+                >
+                  {{ !localTimerCalc.isRunning && !localTimerCalc.currentPhase ? 'EN ATTENTE' : (localTimerCalc.currentPhase?.name || 'PRÊT') }}
+                </span>
+                <span class="font-mono font-bold text-xl md:text-2xl tabular-nums tracking-tight" 
+                   :class="(!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? 'text-gray-400 text-sm' : getTimerTextClass(localTimerCalc.currentPhase)"
+                >
+                  {{ (!localTimerCalc.isRunning && !localTimerCalc.currentPhase) ? '--:--' : formatGlobalTime(localTimerCalc.remainingInPhase) }}
+                </span>
+             </div>
+             <span v-else class="font-black text-lg md:text-2xl uppercase tracking-widest">FIN</span>
+          </div>
+        </div>
+
+        <!-- Right: Score -->
+        <div class="flex justify-end min-w-0">
+          <div class="bg-emerald-700 rounded-full pl-2 pr-3 py-1 flex items-center space-x-1 shadow-lg shadow-emerald-700/20 whitespace-nowrap">
+             <Trophy :size="14" class="text-white flex-shrink-0" />
+             <span class="font-bold text-white text-xs md:text-sm">{{ currentScore }} pts</span>
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="p-4 max-w-2xl mx-auto space-y-6">
+      
+      <!-- Start Workshop Modal -->
+     <div v-if="workshops.length > 0 && !startWorkshopId" class="fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-300 mx-4">
+           <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Départ 🏋️‍♂️</h2>
+           <p class="text-gray-500 text-center mb-6 text-sm md:text-base">À quel atelier votre groupe commence-t-il ?</p>
+           
+           <div class="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+              <button 
+                v-for="(w, idx) in workshops" 
+                :key="w.id"
+                @click="!takenWorkshopIds.has(w.id) && setStartWorkshop(w.id)"
+                :disabled="takenWorkshopIds.has(w.id)"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center transition-all group text-left relative overflow-hidden"
+                :class="takenWorkshopIds.has(w.id) ? 'opacity-50 cursor-not-allowed bg-gray-100 grayscale' : 'hover:bg-emerald-50 hover:border-emerald-500'"
+              >
+                 <div class="absolute inset-0 bg-gray-200/50 backdrop-blur-[1px] z-10 flex items-center justify-center font-bold text-gray-500 uppercase tracking-widest -rotate-12 border-2 border-gray-300 rounded-xl m-2" v-if="takenWorkshopIds.has(w.id)">
+                    Déjà choisi
+                 </div>
+
+                 <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg mr-4 border border-emerald-200 group-hover:scale-110 transition-transform">
+                    {{ idx + 1 }}
+                 </div>
+                 <div>
+                    <span class="block font-bold text-gray-900 text-lg group-hover:text-emerald-900">{{ w.exercises?.name }}</span>
+                    <span class="text-xs text-gray-400 font-medium uppercase tracking-wider">Atelier {{ idx + 1 }}</span>
+                 </div>
+              </button>
+           </div>
+        </div>
+     </div>
+
+     <!-- Workshop List -->
+     <div v-if="workshops.length === 0" class="text-center py-12">
+        <Loader2 :size="32" class="animate-spin text-emerald-600 mx-auto" />
+        <p class="text-gray-500 mt-4">Chargement des ateliers...</p>
+      </div>
+
+
+
+      <div v-else>
+        <div v-if="activeTab === 'workshops'" class="space-y-6">
+          <div 
+            v-for="(workshop, index) in orderedWorkshops" 
+          :key="workshop.id"
+          class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm transition-all duration-300"
+          :class="{'opacity-75 grayscale': solvedWorkshops.has(workshop.id)}"
+        >
+          <!-- Image Header -->
+          <div class="aspect-video bg-gray-100 relative group overflow-hidden">
+             <!-- Video Player -->
+             <div v-if="playingVideoId === workshop.id" class="w-full h-full bg-black">
+                <iframe 
+                  v-if="isYoutube(workshop.exercises?.video_url)"
+                  :src="getEmbedUrl(workshop.exercises?.video_url)" 
+                  class="w-full h-full" 
+                  frameborder="0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowfullscreen
+                ></iframe>
+                <video 
+                  v-else 
+                  :src="workshop.exercises?.video_url" 
+                  controls 
+                  autoplay 
+                  class="w-full h-full object-contain"
+                ></video>
+                <button 
+                  @click.stop="playingVideoId = null" 
+                  class="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70 transition-colors z-10"
+                >
+                  <X :size="16" />
+                </button>
+             </div>
+
+             <!-- Image + Play Button -->
+             <div v-else class="w-full h-full relative cursor-pointer" @click="workshop.exercises?.video_url ? playingVideoId = workshop.id : null">
+                <img 
+                  :src="workshop.workshop_image_url || workshop.exercises?.image_url" 
+                  class="w-full h-full object-contain bg-gray-50 transition-transform duration-700 hover:scale-105"
+                />
+                
+                <!-- Overlay Gradient -->
+                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60"></div>
+
+                <div class="absolute top-2 left-2 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-emerald-800 text-xs font-bold border border-emerald-100 shadow-sm z-10">
+                  Atelier {{ workshops.findIndex(w => w.id === workshop.id) + 1 }}
+                </div>
+
+                <!-- Play Button if Video Exists -->
+                <div 
+                  v-if="workshop.exercises?.video_url" 
+                  class="absolute inset-0 flex items-center justify-center z-20 group-hover:scale-110 transition-transform duration-300"
+                >
+                   <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white pl-1 shadow-2xl group-active:scale-95">
+                      <Play :size="32" class="text-white drop-shadow-md" fill="currentColor" />
+                   </div>
+                   <span class="absolute mt-24 text-white font-bold text-sm tracking-wider uppercase drop-shadow-lg bg-red-600 px-3 py-1 rounded-full shadow-md animate-pulse">Voir la vidéo</span>
+                </div>
+
+                <div v-if="solvedWorkshops.has(workshop.id)" @click.stop="reopenWorkshop(workshop.id)" class="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center z-30 group-hover:bg-white/40 transition-all cursor-pointer">
+                  <div class="bg-white p-3 rounded-full shadow-xl mb-2">
+                     <CheckCircle2 :size="32" class="text-emerald-500" />
+                  </div>
+                  <span class="text-emerald-800 text-xs font-bold bg-white/90 px-2 py-1 rounded shadow-sm">Validé ({{ workshopPoints[workshop.id] || 0 }} pts)</span>
+                  <span class="text-emerald-600 text-[10px] font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Cliquer pour modifier</span>
+                </div>
+             </div>
+          </div>
+
+          <!-- Body -->
+          <div class="p-5">
+            <h3 class="font-bold text-xl text-gray-900 mb-4 flex items-center">
+              {{ workshop.exercises?.name }}
+            </h3>
+
+            <!-- Mission du jour -->
+            <div v-if="workshop.mission" class="mb-6 bg-amber-100 text-black px-5 py-4 rounded-xl text-base whitespace-pre-line border-l-4 border-amber-500 shadow-md ring-1 ring-amber-200">
+               <div class="flex items-center font-bold mb-2 text-amber-800 uppercase text-sm tracking-wider">
+                 <Target :size="20" class="mr-2" /> 
+                 Mission du jour
+               </div>
+               {{ workshop.mission }}
+            </div>
+
+            <!-- Niveaux (Toujours visible) -->
+            <div v-if="workshop.exercises?.levels" class="mb-4 bg-blue-50 text-blue-950 px-4 py-3 rounded-xl text-sm font-semibold whitespace-pre-line border border-blue-200 shadow-sm">
+               <div class="flex items-center font-bold mb-1 text-blue-800">
+                 <Info :size="16" class="mr-2" /> 
+                 Niveaux
+               </div>
+               {{ workshop.exercises.levels }}
+            </div>
+
+
+            <!-- Placement (Visible if enabled) -->
+            <div v-if="workshop.show_placement && workshop.exercises?.placement" class="mb-4 bg-emerald-50 text-emerald-950 px-4 py-3 rounded-xl text-sm font-semibold whitespace-pre-line border border-emerald-200 shadow-sm">
+               <div class="flex items-center font-bold mb-1 text-emerald-800 uppercase text-xs tracking-wider">
+                 <Shield :size="16" class="mr-2" /> 
+                 Placement & Sécurité
+               </div>
+               {{ workshop.exercises.placement }}
+            </div>
+
+            <!-- Tempo (Visible if enabled) -->
+            <div v-if="workshop.show_tempo && workshop.exercises?.tempo" class="mb-4 bg-purple-50 text-purple-950 px-4 py-3 rounded-xl text-sm font-semibold whitespace-pre-line border border-purple-200 shadow-sm">
+               <div class="flex items-center font-bold mb-1 text-purple-800 uppercase text-xs tracking-wider">
+                 <Clock :size="16" class="mr-2" /> 
+                 Tempo
+               </div>
+               {{ workshop.exercises.tempo }}
+            </div>
+
+            <!-- Respiration (Visible if enabled) -->
+            <div v-if="workshop.show_respiration && workshop.exercises?.respiration" class="mb-6 bg-cyan-50 text-cyan-950 px-4 py-3 rounded-xl text-sm font-semibold whitespace-pre-line border border-cyan-200 shadow-sm">
+               <div class="flex items-center font-bold mb-1 text-cyan-800 uppercase text-xs tracking-wider">
+                 <Wind :size="16" class="mr-2" /> 
+                 Respiration
+               </div>
+               {{ workshop.exercises.respiration }}
+            </div>
+            
+            <div v-if="!solvedWorkshops.has(workshop.id)">
+               <div class="space-y-4">
+                 <div v-for="type in ['principal', 'secondaire', 'tertiaire']" :key="type">
+                    <label class="text-xs uppercase font-bold text-gray-500 mb-1.5 block tracking-wide">Muscle {{ type }}</label>
+                    <div class="relative">
+                       <!-- Dropdown Trigger -->
+                       <button 
+                         @click="openDropdown === `${workshop.id}-${type}` ? openDropdown = null : openDropdown = `${workshop.id}-${type}`"
+                         class="w-full text-left px-4 py-3 rounded-xl border flex items-center justify-between transition-all"
+                         :class="answers[workshop.id]?.[type]
+                            ? getMuscleStyle(answers[workshop.id][type], false).replace('hover:bg-white', '') + ' shadow-sm'
+                            : 'bg-white border-gray-300 text-gray-500 hover:border-emerald-500'"
+                       >
+                         <span :class="{'font-bold text-gray-900': answers[workshop.id]?.[type]}">
+                           {{ answers[workshop.id]?.[type] || 'Sélectionner un muscle...' }}
+                         </span>
+                         <ChevronDown :size="18" class="text-gray-400 transition-transform" :class="{'rotate-180': openDropdown === `${workshop.id}-${type}`}" />
+                       </button>
+                       <!-- Teleport dropdown to body to avoid any scroll/overflow issues -->
+                       <Teleport to="body">
+                         <!-- Backdrop to close -->
+                         <div 
+                           v-if="openDropdown === `${workshop.id}-${type}`" 
+                           class="fixed inset-0 z-[9998] bg-black/50" 
+                           @click="openDropdown = null"
+                         ></div>
+                         
+                         <!-- Dropdown Modal -->
+                         <div 
+                           v-if="openDropdown === `${workshop.id}-${type}`" 
+                           class="fixed z-[9999] inset-x-0 bottom-0 bg-white rounded-t-2xl shadow-2xl max-h-[70vh] flex flex-col animate-in slide-in-from-bottom duration-200"
+                           @touchmove.stop
+                         >
+                           <!-- Header -->
+                           <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-2xl flex-shrink-0">
+                             <span class="text-base font-bold text-gray-800">Sélectionner un muscle</span>
+                             <button @click="openDropdown = null" class="text-gray-500 hover:text-gray-700 p-2 -mr-2 rounded-full hover:bg-gray-200">
+                               <X :size="24" />
+                             </button>
+                           </div>
+                           <!-- Scrollable List -->
+                           <div class="overflow-y-auto flex-1 p-2 overscroll-contain" @touchmove.stop>
+                             <button
+                               v-for="m in muscleList"
+                               :key="m"
+                               @click="answers[workshop.id][type] = m; openDropdown = null"
+                               class="w-full text-left px-4 py-4 rounded-xl transition-all flex items-center justify-between text-base border-2 mb-2"
+                               :class="answers[workshop.id]?.[type] === m
+                                 ? 'bg-emerald-50 border-emerald-500 text-emerald-800 font-bold'
+                                 : 'bg-white border-gray-100 text-gray-700 hover:bg-gray-50 hover:border-gray-200'"
+                             >
+                               <span>{{ m }}</span>
+                               <CheckCircle2 v-if="answers[workshop.id]?.[type] === m" :size="20" class="text-emerald-600" />
+                             </button>
+                           </div>
+                         </div>
+                       </Teleport>
+                    </div>
+                 </div>
+               </div>
+
+               <button 
+                 @click="submitWorkshop(workshop)"
+                 class="w-full mt-8 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-700/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                 :disabled="!isComplete(workshop.id)"
+               >
+                 Valider mes réponses
+               </button>
+            </div>
+            
+            <!-- Result Display -->
+            <div v-else class="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center mt-2">
+               <span class="text-emerald-700 font-bold block mb-1 text-lg">Terminé !</span>
+               <span class="text-emerald-600/80 text-sm font-medium block mb-4">Points gagnés : +{{ workshopPoints[workshop.id] || 0 }} pts</span>
+               
+               <!-- Placement & Respiration (Visible après validation) -->
+               <div class="space-y-3 text-left">
+                  <div v-if="workshop.show_placement && workshop.exercises?.placement" class="bg-white/60 p-3 rounded-lg border border-emerald-200/50">
+                    <span class="font-bold text-emerald-800 text-xs uppercase tracking-wider block mb-1">Placement & Sécurité</span>
+                    <p class="text-emerald-900 text-sm whitespace-pre-line leading-relaxed">{{ workshop.exercises.placement }}</p>
+                  </div>
+
+                  <div v-if="workshop.show_respiration && workshop.exercises?.respiration" class="bg-white/60 p-3 rounded-lg border border-emerald-200/50">
+                    <span class="font-bold text-emerald-800 text-xs uppercase tracking-wider block mb-1">Respiration</span>
+                    <p class="text-emerald-900 text-sm whitespace-pre-line leading-relaxed">{{ workshop.exercises.respiration }}</p>
+                  </div>
+               </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Notebook (Carnet) Tab -->
+      <!-- Notebook (Carnet) Tab -->
+      <div v-else-if="activeTab === 'notebook'" class="space-y-6">
+         <!-- Performer Tabs (if multiple members) -->
+         <div v-if="groupMembers.length > 1" class="flex p-1 bg-gray-100 rounded-xl space-x-1">
+            <button
+              v-for="member in groupMembers"
+              :key="member"
+              @click="activePerformer = member"
+              class="flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all"
+              :class="activePerformer === member ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+            >
+              {{ member }}
+            </button>
+         </div>
+
+         <!-- Coach Select -->
+         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <label class="block text-sm font-bold text-gray-700 mb-2">Coach pour {{ activePerformer }} :</label>
+            <select v-model="selectedCoach" @change="saveCoachSelection" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+               <option value="" disabled>Sélectionner un coach...</option>
+               <option 
+                 v-for="m in groupMembers.filter(n => n !== activePerformer)" 
+                 :key="m" 
+                 :value="m"
+               >
+                 {{ m }}
+               </option>
+            </select>
+         </div>
+
+         <!-- Notebook Table -->
+         <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+
+            <!-- Mobile Card View (Visible on small screens) -->
+            <div class="md:hidden divide-y divide-gray-100">
+               <div 
+                  v-for="workshop in orderedWorkshops" 
+                  :key="workshop.id" 
+                  class="p-4 space-y-3"
+               >
+                  <div class="flex items-center space-x-3 mb-2">
+                     <span class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm border border-emerald-200 shrink-0">
+                       {{ workshops.findIndex(w => w.id === workshop.id) + 1 }}
+                     </span>
+                     <h4 class="font-bold text-gray-900 leading-tight">{{ workshop.exercises?.name }}</h4>
+                  </div>
+
+                  <!-- Series Loop (or single row if no series) -->
+                  <div 
+                     v-for="seriesNum in (hasSeries ? seriesCount : 1)" 
+                     :key="seriesNum"
+                     class="bg-gray-50 rounded-lg p-3 mb-2 border border-gray-200"
+                     :class="{ 'border-l-4 border-l-purple-400': hasSeries }"
+                  >
+                     <!-- Series Number Badge -->
+                     <div v-if="hasSeries" class="flex items-center mb-2">
+                        <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Série {{ seriesNum }}</span>
+                     </div>
+
+                     <div class="grid grid-cols-2 gap-3">
+                        <!-- Niveau -->
+                        <div v-if="roomConfig?.notebook_visible_level !== false" class="col-span-2">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Niveau</label>
+                           <select 
+                             v-model="getEntry(workshop.id, seriesNum).level_selected" 
+                             @change="updateEntry(workshop.id, seriesNum)"
+                             class="w-full text-sm bg-white border border-gray-300 rounded-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-bold text-gray-800"
+                           >
+                              <option value="">-- Choisir --</option>
+                              <option value="Niveau 1">Niveau 1</option>
+                              <option value="Niveau 2">Niveau 2</option>
+                              <option value="Niveau 3">Niveau 3</option>
+                           </select>
+                        </div>
+
+                        <!-- Charges -->
+                        <div v-if="hasCharges">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Charges</label>
+                           <div class="flex items-center">
+                              <input 
+                                type="text" 
+                                v-model="getEntry(workshop.id, seriesNum).charge"
+                                @blur="updateEntry(workshop.id, seriesNum)"
+                                placeholder="0"
+                                class="w-16 text-sm bg-white border border-gray-300 rounded-l-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-bold text-center"
+                              />
+                              <span class="bg-gray-200 text-gray-600 px-2 py-2 border border-l-0 border-gray-300 rounded-r-lg text-sm font-medium">kg</span>
+                           </div>
+                        </div>
+
+                        <!-- Répétitions -->
+                        <div v-if="hasReps">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Répétitions</label>
+                           <input 
+                             type="text" 
+                             v-model="getEntry(workshop.id, seriesNum).repetitions"
+                             @blur="updateEntry(workshop.id, seriesNum)"
+                             placeholder="10"
+                             class="w-full text-sm bg-white border border-gray-300 rounded-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-bold text-center"
+                           />
+                        </div>
+
+                        <!-- Placement -->
+                        <div v-if="workshop.show_placement">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Placement</label>
+                           <CounterInput 
+                             v-model="getEntry(workshop.id, seriesNum).placement_errors"
+                             @update:modelValue="updateEntry(workshop.id, seriesNum)" 
+                           />
+                        </div>
+
+                        <!-- Tempo -->
+                        <div v-if="workshop.show_tempo">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Tempo</label>
+                           <CounterInput 
+                             v-model="getEntry(workshop.id, seriesNum).tempo_errors"
+                             @update:modelValue="updateEntry(workshop.id, seriesNum)" 
+                           />
+                        </div>
+
+                        <!-- Respiration -->
+                        <div v-if="workshop.show_respiration">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Respiration</label>
+                           <CounterInput 
+                             v-model="getEntry(workshop.id, seriesNum).respiration_errors"
+                             @update:modelValue="updateEntry(workshop.id, seriesNum)" 
+                           />
+                        </div>
+
+                        <!-- Ressentis -->
+                        <div v-if="roomConfig?.notebook_visible_feeling !== false" class="col-span-2">
+                           <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Ressentis</label>
+                           <select 
+                             v-model="getEntry(workshop.id, seriesNum).feeling" 
+                             @change="updateEntry(workshop.id, seriesNum)"
+                             class="w-full text-sm bg-white border border-gray-300 rounded-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-medium"
+                             :class="{
+                               'text-emerald-700 bg-emerald-50 border-emerald-200': getEntry(workshop.id, seriesNum).feeling == 1 || getEntry(workshop.id, seriesNum).feeling == 2,
+                               'text-amber-700 bg-amber-50 border-amber-200': getEntry(workshop.id, seriesNum).feeling == 3 || getEntry(workshop.id, seriesNum).feeling == 4,
+                               'text-red-700 bg-red-50 border-red-200': getEntry(workshop.id, seriesNum).feeling == 5
+                             }"
+                           >
+                              <option :value="null">--</option>
+                              <option :value="1">1 - Très facile</option>
+                              <option :value="2">2 - Effort léger</option>
+                              <option :value="3">3 - Effort un peu dur</option>
+                              <option :value="4">4 - Effort difficile</option>
+                              <option :value="5">5 - Effort maximal</option>
+                           </select>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="hidden md:block overflow-x-auto">
+               <table class="w-full text-sm text-left">
+                  <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+                     <tr>
+                        <th class="px-4 py-3 min-w-[120px]">Atelier</th>
+                        <th v-if="hasSeries" class="px-2 py-3 min-w-[60px] text-center">Série</th>
+                        <th v-if="roomConfig?.notebook_visible_level !== false" class="px-2 py-3 min-w-[100px] text-center">Niveau</th>
+                        <th v-if="hasCharges" class="px-2 py-3 min-w-[80px] text-center">Charges</th>
+                        <th v-if="hasReps" class="px-2 py-3 min-w-[80px] text-center">Reps</th>
+                        <th v-if="hasPlacement" class="px-2 py-3 min-w-[80px] text-center">Placement</th>
+                        <th v-if="hasTempo" class="px-2 py-3 min-w-[80px] text-center">Tempo</th>
+                        <th v-if="hasRespiration" class="px-2 py-3 min-w-[80px] text-center">Respiration</th>
+                        <th v-if="roomConfig?.notebook_visible_feeling !== false" class="px-2 py-3 min-w-[120px] text-center">Ressentis</th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     <template v-for="workshop in orderedWorkshops" :key="workshop.id">
+                        <tr 
+                           v-for="seriesNum in (hasSeries ? seriesCount : 1)" 
+                           :key="`${workshop.id}_${seriesNum}`"
+                           class="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                           :class="{ 'bg-purple-50/30': hasSeries && seriesNum % 2 === 0 }"
+                        >
+                           <!-- Workshop Name (only on first series row, with rowspan) -->
+                           <td 
+                              v-if="seriesNum === 1" 
+                              :rowspan="hasSeries ? seriesCount : 1"
+                              class="px-4 py-3 font-medium text-gray-900 align-top border-r border-gray-100"
+                           >
+                              <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs border border-emerald-200">
+                                  {{ workshops.findIndex(w => w.id === workshop.id) + 1 }}
+                                </div>
+                                <span>{{ workshop.exercises?.name }}</span>
+                              </div>
+                           </td>
+
+                           <!-- Series Number -->
+                           <td v-if="hasSeries" class="px-2 py-2 text-center">
+                              <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">{{ seriesNum }}</span>
+                           </td>
+
+                           <!-- Level (only on first series row) -->
+                           <td v-if="roomConfig?.notebook_visible_level !== false" class="px-2 py-2 text-center">
+                              <select 
+                                v-model="getEntry(workshop.id, seriesNum).level_selected" 
+                                @change="updateEntry(workshop.id, seriesNum)"
+                                class="w-full text-xs bg-white border border-gray-300 rounded px-1 py-1 focus:ring-1 focus:ring-emerald-500"
+                              >
+                                 <option value="">--</option>
+                                 <option value="Niveau 1">Niveau 1</option>
+                                 <option value="Niveau 2">Niveau 2</option>
+                                 <option value="Niveau 3">Niveau 3</option>
+                              </select>
+                           </td>
+
+                           <!-- Charges -->
+                           <td v-if="hasCharges" class="px-2 py-2 text-center">
+                              <div class="flex items-center justify-center">
+                                 <input 
+                                   type="text" 
+                                   v-model="getEntry(workshop.id, seriesNum).charge"
+                                   @blur="updateEntry(workshop.id, seriesNum)"
+                                   placeholder="0"
+                                   class="w-12 text-xs bg-white border border-gray-300 rounded-l px-1 py-1 focus:ring-1 focus:ring-emerald-500 text-center"
+                                 />
+                                 <span class="bg-gray-200 text-gray-600 px-1 py-1 border border-l-0 border-gray-300 rounded-r text-xs">kg</span>
+                              </div>
+                           </td>
+
+                           <!-- Repetitions -->
+                           <td v-if="hasReps" class="px-2 py-2 text-center">
+                              <input 
+                                type="text" 
+                                v-model="getEntry(workshop.id, seriesNum).repetitions"
+                                @blur="updateEntry(workshop.id, seriesNum)"
+                                placeholder="10"
+                                class="w-16 text-xs bg-white border border-gray-300 rounded px-1 py-1 focus:ring-1 focus:ring-emerald-500 text-center"
+                              />
+                           </td>
+
+                           <!-- Placement -->
+                           <td v-if="hasPlacement" class="px-2 py-2">
+                              <div v-if="workshop.show_placement">
+                                 <CounterInput 
+                                   v-model="getEntry(workshop.id, seriesNum).placement_errors"
+                                   @update:modelValue="updateEntry(workshop.id, seriesNum)" 
+                                 />
+                              </div>
+                              <div v-else class="text-center text-gray-300">-</div>
+                           </td>
+
+                           <!-- Tempo -->
+                           <td v-if="hasTempo" class="px-2 py-2">
+                              <div v-if="workshop.show_tempo">
+                                 <CounterInput 
+                                   v-model="getEntry(workshop.id, seriesNum).tempo_errors"
+                                   @update:modelValue="updateEntry(workshop.id, seriesNum)" 
+                                 />
+                              </div>
+                              <div v-else class="text-center text-gray-300">-</div>
+                           </td>
+
+                           <!-- Respiration -->
+                           <td v-if="hasRespiration" class="px-2 py-2">
+                              <div v-if="workshop.show_respiration">
+                                 <CounterInput 
+                                   v-model="getEntry(workshop.id, seriesNum).respiration_errors"
+                                   @update:modelValue="updateEntry(workshop.id, seriesNum)" 
+                                 />
+                              </div>
+                              <div v-else class="text-center text-gray-300">-</div>
+                           </td>
+
+                           <!-- Ressentis -->
+                           <td v-if="roomConfig?.notebook_visible_feeling !== false" class="px-2 py-2">
+                              <select 
+                                v-model="getEntry(workshop.id, seriesNum).feeling" 
+                                @change="updateEntry(workshop.id, seriesNum)"
+                                class="w-full text-xs bg-white border border-gray-300 rounded px-1 py-1.5 focus:ring-1 focus:ring-emerald-500 font-medium"
+                                :class="{
+                                  'text-emerald-700 bg-emerald-50 border-emerald-200': getEntry(workshop.id, seriesNum).feeling == 1 || getEntry(workshop.id, seriesNum).feeling == 2,
+                                  'text-amber-700 bg-amber-50 border-amber-200': getEntry(workshop.id, seriesNum).feeling == 3 || getEntry(workshop.id, seriesNum).feeling == 4,
+                                  'text-red-700 bg-red-50 border-red-200': getEntry(workshop.id, seriesNum).feeling == 5
+                                }"
+                              >
+                                 <option :value="null">--</option>
+                                 <option :value="1">1 - Très facile</option>
+                                 <option :value="2">2 - Effort léger</option>
+                                 <option :value="3">3 - Effort un peu dur</option>
+                                 <option :value="4">4 - Effort difficile</option>
+                                 <option :value="5">5 - Effort maximal</option>
+                              </select>
+                           </td>
+                        </tr>
+                     </template>
+                  </tbody>
+               </table>
+            </div>
+
+      </div>
+      </div>
+      </div>
+
+    </main>
+    
+    <!-- Bottom Navigation -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-50 flex justify-around items-center h-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      <button 
+        @click="activeTab = 'workshops'"
+        class="flex flex-col items-center justify-center w-full h-full space-y-1.5 transition-colors duration-200"
+        :class="activeTab === 'workshops' ? 'text-emerald-600 bg-emerald-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'"
+      >
+        <Dumbbell :size="28" :stroke-width="activeTab === 'workshops' ? 2.5 : 2" />
+        <span class="text-xs font-bold uppercase tracking-wider">Ateliers</span>
+      </button>
+
+      <button 
+        v-if="roomConfig?.notebook_enabled ?? true"
+        @click="activeTab = 'notebook'"
+        class="flex flex-col items-center justify-center w-full h-full space-y-1.5 transition-colors duration-200"
+        :class="activeTab === 'notebook' ? 'text-emerald-600 bg-emerald-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'"
+      >
+        <ClipboardList :size="28" :stroke-width="activeTab === 'notebook' ? 2.5 : 2" />
+        <span class="text-xs font-bold uppercase tracking-wider">Carnet</span>
+      </button>
+    </div>
+
+
+    <!-- Timer FAB -->
+    <button 
+      @click="showTimerModal = true"
+      class="fixed bottom-48 right-4 bg-white hover:bg-gray-50 text-emerald-600 w-14 h-14 md:w-16 md:h-16 rounded-full shadow-2xl shadow-emerald-900/20 transition-all hover:scale-110 active:scale-95 z-40 flex items-center justify-center border-4 border-white overflow-hidden ring-1 ring-emerald-100"
+      title="Chronomètre"
+    >
+      <Timer :size="32" :stroke-width="2" />
+      <span v-if="timerRunning" class="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border border-white animate-pulse"></span>
+    </button>
+
+    <!-- Muscle Sheet FAB -->
+    <button 
+      @click="showMuscleSheet = true"
+      class="fixed bottom-24 right-4 bg-white hover:bg-gray-50 text-white w-14 h-14 md:w-16 md:h-16 rounded-full shadow-2xl shadow-emerald-900/20 transition-all hover:scale-110 active:scale-95 z-40 flex items-center justify-center border-4 border-white overflow-hidden"
+      title="Fiche Muscle"
+    >
+      <img src="/muscle-icon.png" alt="Muscles" class="w-full h-full object-cover" />
+    </button>
+
+    <!-- Timer Modal / Popover -->
+    <div v-if="showTimerModal" class="fixed bottom-64 right-4 z-[60] animate-in slide-in-from-bottom-5 duration-200">
+       <div class="bg-white rounded-2xl p-6 shadow-2xl border border-gray-100 w-64 relative">
+          <button @click="showTimerModal = false" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 p-1">
+             <X :size="20" />
+          </button>
+          
+          <div class="flex flex-col items-center">
+             <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center">
+                Chronomètre
+             </h3>
+             
+             <!-- Time Display -->
+             <div class="text-4xl font-mono font-bold text-gray-900 mb-4 tabular-nums tracking-tighter">
+                {{ formattedTime }}
+             </div>
+
+             <!-- Controls -->
+             <div class="flex items-center space-x-3">
+                <!-- Play/Pause -->
+                <button 
+                   @click="toggleTimer"
+                   class="w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md active:scale-95"
+                   :class="timerRunning ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/30'"
+                >
+                   <Pause v-if="timerRunning" :size="24" fill="currentColor" />
+                   <Play v-else :size="28" fill="currentColor" class="ml-1" />
+                </button>
+
+                <!-- Reset -->
+                <button 
+                   @click="resetTimer"
+                   class="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-all active:scale-95"
+                   title="Remettre à zéro"
+                >
+                   <RotateCcw :size="18" />
+                </button>
+             </div>
+          </div>
+       </div>
+    </div>
+
+    <!-- Muscle Sheet Modal -->
+    <div v-if="showMuscleSheet" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click.self="showMuscleSheet = false">
+       <div class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
+          <button @click="showMuscleSheet = false" class="absolute top-4 right-4 bg-white/90 p-2 rounded-full shadow-lg text-gray-800 hover:bg-gray-100 mb-4 z-10 transition-colors">
+             <X :size="24" />
+          </button>
+          <div class="overflow-y-auto p-4 flex items-center justify-center h-full">
+             <img src="/muscle-sheet.png" alt="Fiche Muscle" class="w-full h-auto object-contain max-h-[85vh]" />
+          </div>
+       </div>
+    </div>
+
+
+    <!-- Feedback Modal (Replaces Alert) -->
+    <div v-if="feedbackState.isVisible" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+       <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl transform transition-all scale-100 animate-in zoom-in-95 duration-200">
+          <div class="flex flex-col items-center text-center space-y-4">
+             <div class="p-4 rounded-full" :class="feedbackState.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'">
+                <Trophy v-if="feedbackState.type === 'success'" :size="32" />
+                <AlertTriangle v-else :size="32" />
+             </div>
+             
+             <div>
+                <h3 class="text-xl font-bold text-gray-900 mb-1">{{ feedbackState.title }}</h3>
+                <p class="text-gray-600 text-sm leading-relaxed">{{ feedbackState.message }}</p>
+             </div>
+
+             <button 
+               @click="feedbackState.isVisible = false"
+               class="w-full py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95"
+               :class="feedbackState.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'"
+             >
+               Continuer
+             </button>
+          </div>
+       </div>
+    </div>
+  </div>
+  <div v-else class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="flex flex-col items-center">
+       <Loader2 class="animate-spin text-emerald-600 mb-4" :size="48" />
+       <p class="text-gray-500 font-medium">Chargement de la session...</p>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { supabase } from '../../supabase'
+import { calculateTimerState, TIMER_COLORS, playTimerSound, unlockAudio } from '../../utils/timer'
+import { useStudentStore } from '../../stores/student'
+import { MUSCLE_LIST } from '../../constants/muscles'
+import { User, Timer, Trophy, Loader2, CheckCircle2, LogOut, RotateCcw, Play, Pause, Info, X, ChevronDown, Target, ClipboardList, Shield, Clock, Wind, AlertTriangle, Dumbbell } from 'lucide-vue-next'
+import CounterInput from '../../components/CounterInput.vue'
+
+const route = useRoute()
+const router = useRouter()
+const studentStore = useStudentStore()
+const studentInfo = computed(() => studentStore.studentInfo)
+
+// Redirect if missing
+const shouldRedirect = !studentInfo.value
+if (shouldRedirect) {
+  // Will redirect in onMounted to avoid running setup code with null studentInfo
+}
+
+const workshops = ref([])
+const muscleList = MUSCLE_LIST
+
+const getMuscleStyle = (muscle, isSelected) => {
+  if (isSelected) {
+    return 'bg-emerald-600 text-white font-bold ring-2 ring-emerald-600 shadow-md transform scale-[1.02]'
+  }
+  return 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors'
+}
+const answers = ref({})
+const solvedWorkshops = ref(new Set())
+const workshopPoints = ref({})
+
+const currentScore = ref(0) 
+const showTimerModal = ref(false)
+const showMuscleSheet = ref(false)
+const openDropdown = ref(null)
+const storedTab = localStorage.getItem(`student_tab_${route.params.id}`)
+const activeTab = ref(storedTab || 'workshops')
+
+watch(activeTab, (val) => {
+  localStorage.setItem(`student_tab_${route.params.id}`, val)
+})
+
+const roomConfig = ref({})
+const notebookEntries = ref({})
+// const otherStudents = ref([]) // Removed as requested
+const selectedCoach = ref('')
+
+// Group Logic
+const groupMembers = computed(() => {
+  if (!studentInfo.value?.name) return []
+  try {
+     return studentInfo.value.name.split(' & ').map(s => s.trim())
+  } catch (e) {
+     return []
+  }
+})
+
+const storedPerformer = localStorage.getItem(`student_performer_${route.params.id}`)
+const activePerformer = ref(storedPerformer || '') // The member tab currently selected
+
+watch(activePerformer, (val) => {
+  if (val) {
+    localStorage.setItem(`student_performer_${route.params.id}`, val)
+    // Reload notebook entries when switching performer
+    fetchNotebookEntries()
+  }
+})
+
+// Timer Logic
+const time = ref(0)
+const timerRunning = ref(false)
+const timerInterval = ref(null)
+
+// Global Timer Logic
+const timerConfig = ref({ repeats: 1, phases: [] })
+const timerState = ref({ state: 'idle', start_timestamp: null, paused_timestamp: null, elapsed_before_pause: 0 })
+const localTimerCalc = ref({ isRunning: false, isFinished: false, currentPhase: null, currentPhaseIndex: -1, remainingInPhase: 0, totalRemaining: 0, elapsed: 0 })
+// lastPhaseIndex removed (unused - phase detection uses prevPhaseIndex locally)
+const startWorkshopId = ref(null)
+const playingVideoId = ref(null)
+const feedbackState = ref({ isVisible: false, title: '', message: '', type: 'success' })
+const takenWorkshopIds = ref(new Set())
+// Workshop advancement is now controlled by 'workshop_change' action in timer phases
+
+const hasPlacement = computed(() => {
+   return roomConfig.value?.notebook_visible_placement !== false
+})
+
+const hasTempo = computed(() => {
+   return roomConfig.value?.notebook_visible_tempo !== false
+})
+
+const hasRespiration = computed(() => {
+   return roomConfig.value?.notebook_visible_respiration !== false
+})
+
+const hasSeries = computed(() => {
+   return roomConfig.value?.notebook_visible_series === true
+})
+
+const hasCharges = computed(() => {
+   return roomConfig.value?.notebook_visible_charges === true
+})
+
+const hasReps = computed(() => {
+   return roomConfig.value?.notebook_visible_reps === true
+})
+
+const seriesCount = computed(() => {
+   return roomConfig.value?.notebook_series_count || 1
+})
+
+const orderedWorkshops = computed(() => {
+  if (!startWorkshopId.value || workshops.value.length === 0) return []
+  
+  const startIdx = workshops.value.findIndex(w => w.id === startWorkshopId.value)
+  if (startIdx === -1) return workshops.value
+
+  const ordered = [
+    ...workshops.value.slice(startIdx),
+    ...workshops.value.slice(0, startIdx)
+  ]
+  
+  // Return only the current one based on index loop
+  const index = currentWorkshopIndex.value % ordered.length
+  return [ordered[index]]
+})
+
+const storedIndex = localStorage.getItem(`student_workshop_index_${route.params.id}`)
+const currentWorkshopIndex = ref(storedIndex ? parseInt(storedIndex) : 0) // Tracks local progress in the loop
+
+watch(currentWorkshopIndex, (val) => {
+  localStorage.setItem(`student_workshop_index_${route.params.id}`, val)
+})
+
+const setStartWorkshop = async (wId) => {
+   // Unlock audio for mobile (requires user interaction)
+   unlockAudio()
+   
+   startWorkshopId.value = wId
+   // Reset index when changing start point? Or keep?
+   // Usually start point change implies reset.
+   currentWorkshopIndex.value = 0 
+   // Save to DB
+   await supabase.from('students').update({ start_workshop_id: wId }).eq('id', studentInfo.value.id)
+}
+
+let globalTimerInterval
+let syncPollingInterval // Backup polling
+let handleVisibilityChange = null
+
+const getTimerBgClass = (phase) => {
+   if (!phase) return 'bg-gray-100'
+   return TIMER_COLORS.find(c => c.value === phase.color)?.light || 'bg-gray-100'
+}
+const getTimerTextClass = (phase) => {
+   if (!phase) return 'text-gray-600'
+   return TIMER_COLORS.find(c => c.value === phase.color)?.text || 'text-gray-900'
+}
+const formatGlobalTime = (ms) => {
+   if (ms <= 0) return '00:00'
+   const totalSec = Math.ceil(ms / 1000)
+   const m = Math.floor(totalSec / 60)
+   const s = totalSec % 60
+   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
+const formattedTime = computed(() => {
+  const m = Math.floor(time.value / 60).toString().padStart(2, '0')
+  const s = (time.value % 60).toString().padStart(2, '0')
+  return `${m}:${s}`
+})
+
+const toggleTimer = () => {
+  if (timerRunning.value) {
+    clearInterval(timerInterval.value)
+  } else {
+    timerInterval.value = setInterval(() => time.value++, 1000)
+  }
+  timerRunning.value = !timerRunning.value
+}
+
+const resetTimer = () => {
+  clearInterval(timerInterval.value)
+  time.value = 0
+  timerRunning.value = false
+}
+
+// Data Fetching
+const fetchWorkshops = async () => {
+  console.log("Fetching workshops for room:", route.params.id)
+  const { data, error } = await supabase
+    .from('workshops')
+    .select('*, exercises(*), show_placement, show_respiration, show_tempo')
+    .eq('room_id', route.params.id)
+    .order('order_index')
+  
+  if (error) {
+    console.error("Error fetching workshops:", error)
+    return
+  }
+
+  if (data) {
+    // console.log("Workshops data:", data)
+    /*data.forEach(w => {
+       console.log(`Workshop ${w.id}: show_p=${w.show_placement}, show_t=${w.show_tempo}, show_r=${w.show_respiration}`)
+       console.log(`Exercise Content:`, w.exercises)
+    })*/
+    workshops.value = data
+    data.forEach(w => {
+      if (!answers.value[w.id]) {
+        answers.value[w.id] = { principal: '', secondaire: '', tertiaire: '' }
+      }
+    })
+  }
+}
+
+const isComplete = (workshopId) => {
+  const a = answers.value[workshopId]
+  return a && a.principal && a.secondaire && a.tertiaire
+}
+
+// Validation Logic
+const validateNotebook = (workshopId) => {
+  // Skip validation entirely if notebook is disabled
+  if (roomConfig.value?.notebook_enabled === false) return true
+
+  const entry = getEntry(workshopId)
+  if (!entry) return false
+
+  // 1. Check Level (if globally enabled)
+  if (roomConfig.value?.notebook_visible_level !== false && !entry.level_selected) {
+    showFeedback('Carnet incomplet', 'Pensez à bien compléter votre carnet d\'entraînement avant de pouvoir continuer.', 'warning')
+    return false
+  }
+
+  // 2. Check Placement (if workshop enabled)
+  const workshop = workshops.value.find(w => w.id === workshopId)
+  if (workshop?.show_placement && (entry.placement_errors === undefined || entry.placement_errors === null)) {
+     showFeedback('Carnet incomplet', 'Pensez à bien compléter votre carnet d\'entraînement avant de pouvoir continuer.', 'warning')
+     return false
+  }
+
+  // 3. Check Feeling (always required if visible logic exists? usually yes)
+  // Assuming Feeling is always part of the notebook flow
+  if (roomConfig.value?.notebook_visible_feeling !== false && !entry.feeling) {
+     showFeedback('Carnet incomplet', 'Pensez à bien compléter votre carnet d\'entraînement avant de pouvoir continuer.', 'warning')
+     return false
+  }
+
+  return true
+}
+
+const submitWorkshop = async (workshop) => {
+  if (!studentInfo.value?.id) return
+  // Unlock audio on user interaction (for timer sounds later)
+  unlockAudio()
+
+  // Enforce notebook validation
+  if (!validateNotebook(workshop.id)) return
+
+  // if (!confirm('Confirmer vos réponses ? Vous ne pourrez plus modifier.')) return
+
+  const userRes = answers.value[workshop.id]
+  let points = 0
+  
+  const normalize = (s) => s?.toLowerCase().trim()
+  
+  const expected = {
+    p: normalize(workshop.muscle_primary),
+    s: normalize(workshop.muscle_secondary),
+    t: normalize(workshop.muscle_tertiary)
+  }
+  
+  const actual = {
+    p: normalize(userRes.principal),
+    s: normalize(userRes.secondaire),
+    t: normalize(userRes.tertiaire)
+  }
+
+  const pMatch = expected.p === actual.p
+  const sMatch = expected.s === actual.s
+  const tMatch = expected.t === actual.t
+
+  // New scoring system: no bonus for all correct, individual points per position
+  const allExpected = [expected.p, expected.s, expected.t].filter(Boolean)
+  
+  // Principal: 50pts if correct, 1pt if found but wrong position
+  if (pMatch) {
+    points += 50
+  } else if (allExpected.includes(actual.p)) {
+    points += 1
+  }
+  
+  // Secondaire: 10pts if correct, 1pt if found but wrong position
+  if (sMatch) {
+    points += 10
+  } else if (allExpected.includes(actual.s)) {
+    points += 1
+  }
+  
+  // Tertiaire: 5pts if correct, 1pt if found but wrong position
+  if (tMatch) {
+    points += 5
+  } else if (allExpected.includes(actual.t)) {
+    points += 1
+  }
+
+  const previousPoints = workshopPoints.value[workshop.id] || 0
+  const pointDelta = points - previousPoints
+
+  // 1. Save answers + points to DB (persists across refresh)
+  const { error: upsertError } = await supabase
+    .from('student_workshop_answers')
+    .upsert({
+      student_id: studentInfo.value.id,
+      workshop_id: workshop.id,
+      room_id: route.params.id,
+      answer_principal: userRes.principal,
+      answer_secondaire: userRes.secondaire,
+      answer_tertiaire: userRes.tertiaire,
+      points_earned: points
+    }, { onConflict: 'student_id,workshop_id' })
+
+  if (upsertError) {
+    console.error('Error saving workshop answers:', upsertError)
+    showFeedback('Erreur', 'Impossible de sauvegarder vos réponses. Réessayez.', 'warning')
+    return
+  }
+
+  // 2. Recompute total score from DB (atomic - prevents concurrent tab issues)
+  const { data: allAnswers } = await supabase
+    .from('student_workshop_answers')
+    .select('points_earned')
+    .eq('student_id', studentInfo.value.id)
+
+  const totalScore = allAnswers?.reduce((sum, a) => sum + (a.points_earned || 0), 0) || 0
+  currentScore.value = totalScore
+  workshopPoints.value[workshop.id] = points
+
+  // 3. Update student score in DB
+  await supabase
+    .from('students')
+    .update({ score: totalScore })
+    .eq('id', studentInfo.value.id)
+
+  solvedWorkshops.value.add(workshop.id)
+
+  // 4. Show feedback
+  if (pointDelta > 0) {
+    showFeedback('Bravo !', `Vous avez gagné ${pointDelta} points supplémentaires.`, 'success')
+  } else if (pointDelta < 0) {
+    showFeedback('Attention', `Votre nouveau score est inférieur (${pointDelta} pts).`, 'warning')
+  } else {
+    showFeedback('Mis à jour', 'Vos réponses ont été enregistrées (score inchangé).', 'success')
+  }
+}
+
+const showFeedback = (title, message, type = 'success') => {
+   feedbackState.value = { isVisible: true, title, message, type }
+}
+
+const reopenWorkshop = (workshopId) => {
+  solvedWorkshops.value.delete(workshopId)
+}
+
+const isYoutube = (url) => {
+  return url && (url.includes('youtube.com') || url.includes('youtu.be'))
+}
+
+const getEmbedUrl = (url) => {
+  if (!url) return ''
+  let videoId = ''
+  
+  try {
+    // Handle m.youtube.com, youtube.com, youtu.be
+    const cleanUrl = url.replace('m.youtube.', 'youtube.')
+    const urlObj = new URL(cleanUrl)
+
+    if (cleanUrl.includes('youtu.be')) {
+       videoId = cleanUrl.split('/').pop().split('?')[0]
+    } else if (cleanUrl.includes('youtube.com')) {
+       if (urlObj.pathname.includes('/embed/')) {
+          return cleanUrl // Already embed url
+       }
+       if (urlObj.pathname.includes('/shorts/')) {
+          videoId = urlObj.pathname.split('/shorts/')[1]
+       } else {
+          videoId = urlObj.searchParams.get('v')
+       }
+    }
+  } catch (e) {
+    // Fallback for simple youtu.be if URL parsing fails
+    if (url.includes('youtu.be')) {
+       videoId = url.split('/').pop().split('?')[0]
+    } else {
+       console.error("Error parsing Youtube URL:", e)
+       return url
+    }
+  }
+  
+  return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1` : url
+}
+
+// Notebook Logic
+const getEntry = (workshopId, seriesNumber = 1) => {
+  const key = `${workshopId}_${seriesNumber}`
+  if (!notebookEntries.value[key]) {
+    notebookEntries.value[key] = {
+      level_selected: '',
+      placement_errors: 0,
+      tempo_errors: 0,
+      respiration_errors: 0,
+      feeling: null,
+      charge: '',
+      repetitions: '',
+      series_number: seriesNumber
+    }
+  }
+  return notebookEntries.value[key]
+}
+
+const updateEntry = async (workshopId, seriesNumber = 1) => {
+  const key = `${workshopId}_${seriesNumber}`
+  const entry = notebookEntries.value[key]
+  if (!activePerformer.value || !entry || !studentInfo.value?.id) return
+
+  const { error } = await supabase
+    .from('notebook_entries')
+    .upsert({
+      ...(entry.id ? { id: entry.id } : {}), // Update existing by ID if available
+      student_id: studentInfo.value.id, // Group ID
+      room_id: route.params.id,
+      workshop_id: workshopId,
+      series_number: seriesNumber,
+      performer_name: activePerformer.value, // Specific member
+      coach_name: selectedCoach.value,
+      level_selected: entry.level_selected,
+      placement_errors: entry.placement_errors,
+      tempo_errors: entry.tempo_errors,
+      respiration_errors: entry.respiration_errors,
+      feeling: entry.feeling,
+      charge: entry.charge,
+      repetitions: entry.repetitions
+    }, { onConflict: 'student_id,workshop_id,series_number,performer_name' })
+    
+  console.log(`[DEBUG] Saved entry for ${key} (Series ${seriesNumber}) - Performer: ${activePerformer.value}`, { error })
+    
+  if (error) console.error("Error saving notebook:", error)
+}
+
+const fetchNotebookEntries = async () => {
+  if (!activePerformer.value || !studentInfo.value?.id) return 
+  
+  // Clear entries locally
+  notebookEntries.value = {}
+
+  const { data: entries } = await supabase
+    .from('notebook_entries')
+    .select('*')
+    .eq('student_id', studentInfo.value.id)
+    .eq('room_id', route.params.id)
+    .eq('performer_name', activePerformer.value)
+  
+  // Explicitly reset selectedCoach before populating
+  selectedCoach.value = ''
+
+  if (entries && entries.length > 0) {
+    entries.forEach(e => {
+       // Use workshopId_seriesNumber as key
+       const series = e.series_number || 1
+       const key = `${e.workshop_id}_${series}`
+       if (notebookEntries.value) notebookEntries.value[key] = e
+       if (e.coach_name) selectedCoach.value = e.coach_name
+    })
+    console.log(`[DEBUG] Loaded ${entries.length} entries for ${activePerformer.value}. Keys:`, Object.keys(notebookEntries.value))
+  } else {
+     // Fallback to local storage if no DB entries yet
+     const savedCoach = localStorage.getItem(`coach_${studentInfo.value.id}_${activePerformer.value}`)
+     selectedCoach.value = savedCoach || ''
+  }
+}
+
+const saveCoachSelection = async () => {
+   if (!activePerformer.value || !studentInfo.value?.id) return
+   
+   // 1. Save locally
+   localStorage.setItem(`coach_${studentInfo.value.id}_${activePerformer.value}`, selectedCoach.value)
+   
+   // 2. Update existing entries in DB (so they reflect the new coach)
+   await supabase
+      .from('notebook_entries')
+      .update({ coach_name: selectedCoach.value })
+      .eq('student_id', studentInfo.value.id)
+      .eq('room_id', route.params.id)
+      .eq('performer_name', activePerformer.value)
+}
+
+const fetchTakenWorkshops = async () => {
+  const { data, error } = await supabase
+    .from('students')
+    .select('start_workshop_id')
+    .eq('room_id', route.params.id)
+    .not('start_workshop_id', 'is', null)
+
+  if (data) {
+    const taken = data.map(s => s.start_workshop_id)
+    takenWorkshopIds.value = new Set(taken)
+  }
+}
+
+const subscribeToRoom = () => {
+  supabase
+    .channel(`room-locks-${route.params.id}`)
+    .on(
+      'postgres_changes', 
+      { event: '*', schema: 'public', table: 'students', filter: `room_id=eq.${route.params.id}` }, 
+      (payload) => {
+         // Auto-disconnect if my student entry is deleted (e.g. Reset Room)
+         if (payload.eventType === 'DELETE' && payload.old && payload.old.id === studentInfo.value?.id) {
+            alert("La session a été fermée par l'enseignant.")
+            leaveSession(true)
+            return
+         }
+         fetchTakenWorkshops()
+      }
+    )
+    .subscribe()
+}
+
+const handleBeforeUnload = (e) => {
+  e.preventDefault()
+  e.returnValue = ''
+}
+
+const leaveSession = (skipConfirm = false) => {
+  if (!skipConfirm && !confirm("Voulez-vous vraiment quitter la session ?")) return
+  // Clean up room-scoped localStorage keys to prevent stale state on re-join
+  const roomId = route.params.id
+  localStorage.removeItem(`student_workshop_index_${roomId}`)
+  localStorage.removeItem(`student_performer_${roomId}`)
+  localStorage.removeItem(`student_tab_${roomId}`)
+  studentStore.logout()
+  router.push('/')
+}
+
+// Duplicate watcher removed - fetchNotebookEntries() in the first watcher handles this correctly
+// The second watcher was using wrong key format (workshop_id instead of workshop_id_seriesNumber)
+
+
+
+const syncTimer = (room) => {
+   if (!room) return
+   if (room.timer_config) timerConfig.value = room.timer_config
+   if (room.timer_status) {
+      timerState.value = room.timer_status
+      localTimerCalc.value = calculateTimerState(timerConfig.value, timerState.value)
+   }
+}
+
+onMounted(async () => {
+  // Handle redirect for missing student info
+  if (shouldRedirect) {
+    window.location.href = '/student/join'
+    return
+  }
+
+  const roomId = route.params.id
+  window.addEventListener('beforeunload', handleBeforeUnload)
+
+  // Load score + solved workshops from DB to survive page refresh
+  if (studentInfo.value?.id) {
+    const { data: studentData } = await supabase.from('students').select('score').eq('id', studentInfo.value.id).single()
+    if (studentData) {
+      currentScore.value = studentData.score || 0
+    }
+
+    // Load persisted workshop answers (solved state, points, muscle selections)
+    const { data: savedAnswers } = await supabase
+      .from('student_workshop_answers')
+      .select('workshop_id, points_earned, answer_principal, answer_secondaire, answer_tertiaire')
+      .eq('student_id', studentInfo.value.id)
+
+    if (savedAnswers) {
+      savedAnswers.forEach(wa => {
+        solvedWorkshops.value.add(wa.workshop_id)
+        workshopPoints.value[wa.workshop_id] = wa.points_earned || 0
+        // Restore muscle selections
+        answers.value[wa.workshop_id] = {
+          principal: wa.answer_principal || '',
+          secondaire: wa.answer_secondaire || '',
+          tertiaire: wa.answer_tertiaire || ''
+        }
+      })
+    }
+  }
+
+  if (groupMembers.value.length > 0 && !activePerformer.value) {
+     activePerformer.value = groupMembers.value[0]
+  }
+
+  // Define fetchRoomData wrapper
+  const fetchRoomData = async () => {
+     try {
+       const { data, error } = await supabase.from('rooms').select('*').eq('id', roomId).single()
+       if (data) {
+          syncTimer(data)
+          roomConfig.value = data
+          // Force switch if notebook disabled
+          if (data.notebook_enabled === false && activeTab.value === 'notebook') {
+             activeTab.value = 'workshops'
+          }
+       }
+       if (error) console.error("Error fetching room config:", error)
+     } catch (e) {
+       console.error("Exception fetching room config:", e)
+     }
+  }
+
+  // Define safe fetchTakenWorkshops wrapper
+  const safeFetchTakenWorkshops = async () => {
+     try {
+        await fetchTakenWorkshops()
+     } catch (e) {
+        console.error("Error fetching taken workshops (feature might be disabled/db missing column):", e)
+     }
+  }
+
+  // Execute in parallel
+  await Promise.all([
+    fetchWorkshops(),
+    safeFetchTakenWorkshops(),
+    fetchRoomData() // Fetch config immediately
+  ])
+
+  // Timer Subscription
+  supabase
+    .channel(`room-timer-${roomId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+      (payload) => {
+        if (payload.new) {
+          syncTimer(payload.new)
+          // Also update config on change
+          roomConfig.value = { ...roomConfig.value, ...payload.new }
+          // Force switch if notebook disabled
+          if (payload.new.notebook_enabled === false && activeTab.value === 'notebook') {
+             activeTab.value = 'workshops'
+          }
+        }
+      }
+    )
+    .subscribe()
+
+  // Workshops realtime subscription - auto-update when teacher adds/deletes/modifies workshops
+  supabase
+    .channel(`room-workshops-${roomId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'workshops', filter: `room_id=eq.${roomId}` },
+      () => {
+        fetchWorkshops()
+      }
+    )
+    .subscribe()
+
+  // Resync timer & config when tab becomes visible (handles screen off/on, tab switch, connection drops)
+  handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      fetchRoomData()
+    }
+  }
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  // Locks Subscription
+  subscribeToRoom()
+
+  // Fetch My Start Workshop
+  if (studentInfo.value?.id) {
+     const { data: studentData } = await supabase.from('students').select('start_workshop_id').eq('id', studentInfo.value.id).single()
+     if (studentData?.start_workshop_id) {
+        startWorkshopId.value = studentData.start_workshop_id
+     }
+  }
+
+  // Timers
+  globalTimerInterval = setInterval(() => {
+     const prevPhaseIndex = localTimerCalc.value.currentPhaseIndex
+     const prevRemaining = localTimerCalc.value.remainingInPhase
+     
+     if (localTimerCalc.value.isRunning && localTimerCalc.value.remainingInPhase > 0) {
+        localTimerCalc.value.remainingInPhase -= 1000
+        if (localTimerCalc.value.remainingInPhase < 0) localTimerCalc.value.remainingInPhase = 0
+        
+         // Check if phase just ended (remaining hit 0)
+         const phaseEndCondition = localTimerCalc.value.remainingInPhase <= 0 && prevRemaining > 0 && prevPhaseIndex >= 0
+         if (phaseEndCondition) {
+            const endedPhase = timerConfig.value.phases[prevPhaseIndex % timerConfig.value.phases.length]
+           if (endedPhase?.sound && endedPhase.sound !== 'none') {
+              console.log('Phase ended, playing sound:', endedPhase.sound)
+              unlockAudio()
+              playTimerSound(endedPhase.sound)
+           }
+           
+           // Check for workshop_change action
+            // Advance to next workshop if configured
+            if (endedPhase?.action === 'workshop_change') {
+               currentWorkshopIndex.value++
+               window.scrollTo({ top: 0, behavior: 'smooth' })
+            }
+        }
+     } else if (localTimerCalc.value.isRunning) {
+        localTimerCalc.value = calculateTimerState(timerConfig.value, timerState.value)
+        // Note: Workshop advancement is now handled by the 'workshop_change' action in phase config
+     }
+  }, 1000)
+
+  // Backup polling (realtime handles most sync; this is a fallback for missed events)
+  syncPollingInterval = setInterval(async () => {
+     // Check student still exists (handle reset/kick - realtime may miss DELETE)
+     if (studentInfo.value?.id) {
+        const { data: me, error } = await supabase.from('students').select('id').eq('id', studentInfo.value.id).single()
+        if (error || !me) {
+           clearInterval(syncPollingInterval)
+           alert("La session a été fermée par l'enseignant.")
+           leaveSession(true)
+        }
+     }
+  }, 30000) // 30s backup only - realtime handles live updates
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  if (globalTimerInterval) clearInterval(globalTimerInterval)
+  if (syncPollingInterval) clearInterval(syncPollingInterval)
+  if (timerInterval.value) clearInterval(timerInterval.value)
+  supabase.channel(`room-timer-${route.params.id}`).unsubscribe()
+  supabase.channel(`room-locks-${route.params.id}`).unsubscribe()
+  supabase.channel(`room-workshops-${route.params.id}`).unsubscribe()
+  if (handleVisibilityChange) {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
+})
+</script>
