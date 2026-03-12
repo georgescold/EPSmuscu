@@ -1779,6 +1779,14 @@ onMounted(async () => {
 
   // Backup polling (realtime handles most sync; this is a fallback for missed events)
   syncPollingInterval = setInterval(async () => {
+     // Resync timer state (realtime WebSocket may silently disconnect on mobile)
+     try {
+        const { data: roomData } = await supabase.from('rooms').select('timer_config, timer_status').eq('id', roomId).single()
+        if (roomData) syncTimer(roomData)
+     } catch (e) {
+        console.error('Timer resync error:', e)
+     }
+
      // Check student still exists (handle reset/kick - realtime may miss DELETE)
      if (studentInfo.value?.id) {
         const { data: me, error } = await supabase.from('students').select('id').eq('id', studentInfo.value.id).single()
@@ -1790,7 +1798,7 @@ onMounted(async () => {
            setTimeout(() => leaveSession(true), 2000)
         }
      }
-  }, 30000) // 30s backup only - realtime handles live updates
+  }, 10000) // 10s backup - ensures timer sync even if WebSocket drops
 })
 
 onBeforeUnmount(() => {
