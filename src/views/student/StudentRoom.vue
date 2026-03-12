@@ -1,5 +1,5 @@
 ﻿<template>
-  <div v-if="studentInfo" class="min-h-screen bg-gray-50 pb-48 md:pb-24">
+  <div v-if="studentInfo" class="min-h-[100dvh] bg-gray-50 pb-28 md:pb-24">
     
     <!-- Top Bar -->
     <header class="bg-white border-b border-gray-200 sticky top-0 z-40 px-3 py-2 md:py-3 shadow-md shadow-gray-200/50">
@@ -123,8 +123,8 @@
               <!-- Back button -->
               <button v-if="currentPlanningRound > 1"
                       @click="goBackRound"
-                      class="mb-4 text-sm text-gray-500 hover:text-gray-700 flex items-center transition-colors">
-                <ArrowLeft :size="16" class="mr-1" /> Tour précédent
+                      class="mb-4 text-sm text-gray-500 hover:text-gray-700 flex items-center transition-colors py-2 min-h-[44px]">
+                <ArrowLeft :size="18" class="mr-1.5" /> Tour précédent
               </button>
 
               <!-- Workshop buttons -->
@@ -250,7 +250,7 @@
             </h3>
 
             <!-- Mission du jour -->
-            <div v-if="workshop.mission" class="mb-6 bg-amber-100 text-black px-5 py-4 rounded-xl text-base whitespace-pre-line border-l-4 border-amber-500 shadow-md ring-1 ring-amber-200">
+            <div v-if="workshop.mission" class="mb-6 bg-amber-100 text-black px-5 py-4 rounded-xl text-base whitespace-pre-line break-words border-l-4 border-amber-500 shadow-md ring-1 ring-amber-200">
                <div class="flex items-center font-bold mb-2 text-amber-800 uppercase text-sm tracking-wider">
                  <Target :size="20" class="mr-2" /> 
                  Mission du jour
@@ -736,8 +736,8 @@
 
     <!-- Timer Modal / Popover -->
     <div v-if="showTimerModal" class="fixed bottom-64 right-4 z-[60] animate-in slide-in-from-bottom-5 duration-200">
-       <div class="bg-white rounded-2xl p-6 shadow-2xl border border-gray-100 w-64 relative">
-          <button @click="showTimerModal = false" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 p-1">
+       <div class="bg-white rounded-2xl p-6 shadow-2xl border border-gray-100 w-64 max-w-[calc(100vw-2rem)] relative">
+          <button @click="showTimerModal = false" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
              <X :size="20" />
           </button>
           
@@ -779,7 +779,7 @@
     <!-- Muscle Sheet Modal -->
     <div v-if="showMuscleSheet" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click.self="showMuscleSheet = false">
        <div class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
-          <button @click="showMuscleSheet = false" class="absolute top-4 right-4 bg-white/90 p-2 rounded-full shadow-lg text-gray-800 hover:bg-gray-100 mb-4 z-10 transition-colors">
+          <button @click="showMuscleSheet = false" class="absolute top-4 right-4 bg-white/90 p-3 rounded-full shadow-lg text-gray-800 hover:bg-gray-100 mb-4 z-10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
              <X :size="24" />
           </button>
           <div class="overflow-y-auto p-4 flex items-center justify-center h-full">
