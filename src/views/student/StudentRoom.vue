@@ -359,9 +359,9 @@
                <button
                  @click="submitWorkshop(workshop)"
                  class="w-full mt-8 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-700/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                 :disabled="isMuscleGameEnabled && !isComplete(workshop.id)"
+                 :disabled="isSubmitting || (isMuscleGameEnabled && !isComplete(workshop.id))"
                >
-                 {{ isMuscleGameEnabled ? 'Valider mes réponses' : 'Valider' }}
+                 {{ isSubmitting ? 'Envoi...' : (isMuscleGameEnabled ? 'Valider mes réponses' : 'Valider') }}
                </button>
             </div>
             
@@ -1015,7 +1015,7 @@ const selectRoundWorkshop = async (workshopId) => {
 
 const goBackRound = async () => {
   const prevRound = currentPlanningRound.value - 1
-  if (prevRound < 1) return
+  if (prevRound < 1 || !studentInfo.value?.id) return
 
   // Delete the booking for the previous round from DB
   const workshopId = planningSelections.value[prevRound]
@@ -1252,13 +1252,16 @@ const validateNotebook = (workshopId) => {
   return true
 }
 
+const isSubmitting = ref(false)
+
 const submitWorkshop = async (workshop) => {
-  if (!studentInfo.value?.id) return
+  if (!studentInfo.value?.id || isSubmitting.value) return
+  isSubmitting.value = true
   // Unlock audio on user interaction (for timer sounds later)
   unlockAudio()
 
   // Enforce notebook validation
-  if (!validateNotebook(workshop.id)) return
+  if (!validateNotebook(workshop.id)) { isSubmitting.value = false; return }
 
   // if (!confirm('Confirmer vos réponses ? Vous ne pourrez plus modifier.')) return
 
@@ -1327,6 +1330,7 @@ const submitWorkshop = async (workshop) => {
 
   if (upsertError) {
     console.error('Error saving workshop answers:', upsertError)
+    isSubmitting.value = false
     showFeedback('Erreur', 'Impossible de sauvegarder vos réponses. Réessayez.', 'warning')
     return
   }
@@ -1342,12 +1346,15 @@ const submitWorkshop = async (workshop) => {
   workshopPoints.value[workshop.id] = points
 
   // 3. Update student score in DB
-  await supabase
+  const { error: scoreError } = await supabase
     .from('students')
     .update({ score: totalScore })
     .eq('id', studentInfo.value.id)
 
+  if (scoreError) console.error('Error updating score:', scoreError)
+
   solvedWorkshops.value.add(workshop.id)
+  isSubmitting.value = false
 
   // 4. Show feedback
   if (pointDelta > 0) {
@@ -1666,13 +1673,17 @@ onMounted(async () => {
   }
 
   // Execute in parallel
-  await Promise.all([
-    fetchWorkshops(),
-    safeFetchTakenWorkshops(),
-    fetchRoomData(), // Fetch config immediately
-    fetchAllBookings(),
-    fetchMyBookings()
-  ])
+  try {
+    await Promise.all([
+      fetchWorkshops(),
+      safeFetchTakenWorkshops(),
+      fetchRoomData(), // Fetch config immediately
+      fetchAllBookings(),
+      fetchMyBookings()
+    ])
+  } catch (e) {
+    console.error('Error during initialization:', e)
+  }
 
   // Timer Subscription
   supabase
@@ -1745,7 +1756,7 @@ onMounted(async () => {
         
          // Check if phase just ended (remaining hit 0)
          const phaseEndCondition = localTimerCalc.value.remainingInPhase <= 0 && prevRemaining > 0 && prevPhaseIndex >= 0
-         if (phaseEndCondition) {
+         if (phaseEndCondition && timerConfig.value.phases?.length > 0) {
             const endedPhase = timerConfig.value.phases[prevPhaseIndex % timerConfig.value.phases.length]
            if (endedPhase?.sound && endedPhase.sound !== 'none') {
               console.log('Phase ended, playing sound:', endedPhase.sound)

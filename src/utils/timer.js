@@ -55,7 +55,7 @@ export function calculateTimerState(config, status) {
     let remainingInPhase = 0
     let isFinished = false
 
-    const totalDuration = flatPhases.reduce((acc, p) => acc + (p.duration * 1000), 0)
+    const totalDuration = flatPhases.reduce((acc, p) => acc + ((Number(p.duration) || 0) * 1000), 0)
 
     if (flatPhases.length === 0 || elapsed >= totalDuration) {
         isFinished = true
