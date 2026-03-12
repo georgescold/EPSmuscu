@@ -295,8 +295,8 @@
                {{ workshop.exercises.respiration }}
             </div>
             
-            <div v-if="!solvedWorkshops.has(workshop.id)">
-               <div v-if="isMuscleGameEnabled" class="space-y-4">
+            <div v-if="isMuscleGameEnabled && !solvedWorkshops.has(workshop.id)">
+               <div class="space-y-4">
                  <div v-for="type in ['principal', 'secondaire', 'tertiaire']" :key="type">
                     <label class="text-xs uppercase font-bold text-gray-500 mb-1.5 block tracking-wide">Muscle {{ type }}</label>
                     <div class="relative">
