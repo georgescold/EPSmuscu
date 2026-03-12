@@ -40,10 +40,7 @@ ALTER TABLE public.workshop_bookings
   ADD CONSTRAINT workshop_bookings_room_student_round_key
   UNIQUE (room_id, student_id, round_number);
 
--- Prevent same workshop twice for same student across all rounds
-DROP INDEX IF EXISTS idx_unique_student_workshop;
-CREATE UNIQUE INDEX idx_unique_student_workshop
-  ON public.workshop_bookings (room_id, student_id, workshop_id);
+-- NOTE: No cross-round uniqueness constraint - a group CAN pick the same workshop in multiple rounds
 
 -- 4. RLS (matching existing permissive pattern)
 ALTER TABLE public.workshop_bookings ENABLE ROW LEVEL SECURITY;

@@ -963,12 +963,8 @@ const allRoundsFilled = computed(() => {
 })
 
 const isWorkshopAvailableForRound = (workshopId, roundNumber) => {
-  // Blocked if another group already booked it for this round
+  // Blocked only if another group already booked it for THIS round
   if (bookedByOthersPerRound.value[roundNumber]?.has(workshopId)) return false
-  // Blocked if this group already chose it for ANOTHER round
-  for (const [r, wId] of Object.entries(planningSelections.value)) {
-    if (parseInt(r) !== roundNumber && wId === workshopId) return false
-  }
   return true
 }
 
@@ -1551,8 +1547,10 @@ const subscribeToRoom = () => {
       (payload) => {
          // Auto-disconnect if my student entry is deleted (e.g. Reset Room)
          if (payload.eventType === 'DELETE' && payload.old && payload.old.id === studentInfo.value?.id) {
-            alert("La session a été fermée par l'enseignant.")
-            leaveSession(true)
+            if (sessionClosed.value) return
+            sessionClosed.value = true
+            showFeedback('Session fermée', "La session a été fermée par l'enseignant.", 'warning')
+            setTimeout(() => leaveSession(true), 2000)
             return
          }
          fetchTakenWorkshops()
@@ -1566,8 +1564,12 @@ const handleBeforeUnload = (e) => {
   e.returnValue = ''
 }
 
+const sessionClosed = ref(false)
+
 const leaveSession = (skipConfirm = false) => {
+  if (sessionClosed.value) return // Prevent double-trigger
   if (!skipConfirm && !confirm("Voulez-vous vraiment quitter la session ?")) return
+  sessionClosed.value = true
   // Clean up room-scoped localStorage keys to prevent stale state on re-join
   const roomId = route.params.id
   localStorage.removeItem(`student_workshop_index_${roomId}`)
@@ -1766,9 +1768,11 @@ onMounted(async () => {
      if (studentInfo.value?.id) {
         const { data: me, error } = await supabase.from('students').select('id').eq('id', studentInfo.value.id).single()
         if (error || !me) {
+           if (sessionClosed.value) return
+           sessionClosed.value = true
            clearInterval(syncPollingInterval)
-           alert("La session a été fermée par l'enseignant.")
-           leaveSession(true)
+           showFeedback('Session fermée', "La session a été fermée par l'enseignant.", 'warning')
+           setTimeout(() => leaveSession(true), 2000)
         }
      }
   }, 30000) // 30s backup only - realtime handles live updates
