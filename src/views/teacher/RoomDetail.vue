@@ -477,6 +477,20 @@
             </div>
          </div>
 
+         <!-- Muscle Game Toggle -->
+         <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-200">
+               <div>
+                  <span class="font-bold text-amber-900 block">Jeu des muscles (classement)</span>
+                  <span class="text-xs text-amber-700">Si désactivé, les élèves ne verront pas les devinettes de muscles ni le score.</span>
+               </div>
+               <label class="relative inline-flex items-center cursor-pointer">
+                 <input type="checkbox" v-model="notebookConfig.muscle_game_enabled" class="sr-only peer" @change="updateRoomConfig">
+                 <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-amber-600"></div>
+               </label>
+            </div>
+         </div>
+
          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
             <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
               <Settings :size="20" class="mr-2 text-emerald-600" />
@@ -754,6 +768,7 @@ const rotationMode = ref('imposed')
 const totalRounds = ref(0)
 
 const notebookConfig = ref({
+  muscle_game_enabled: true,
   notebook_enabled: true,
   notebook_visible_level: true,
   notebook_visible_placement: true,
@@ -783,6 +798,7 @@ const fetchRoomDetails = async () => {
     roomCode.value = data.code
     roomName.value = data.name
     notebookConfig.value = {
+      muscle_game_enabled: data.muscle_game_enabled ?? true,
       notebook_enabled: data.notebook_enabled ?? true,
       notebook_visible_level: data.notebook_visible_level ?? true,
       notebook_visible_placement: data.notebook_visible_placement ?? true,

@@ -60,7 +60,7 @@
         </div>
 
         <!-- Right: Score -->
-        <div class="flex justify-end min-w-0">
+        <div v-if="isMuscleGameEnabled" class="flex justify-end min-w-0">
           <div class="bg-emerald-700 rounded-full pl-2 pr-3 py-1 flex items-center space-x-1 shadow-lg shadow-emerald-700/20 whitespace-nowrap">
              <Trophy :size="14" class="text-white flex-shrink-0" />
              <span class="font-bold text-white text-xs md:text-sm">{{ currentScore }} pts</span>
@@ -105,66 +105,63 @@
         </div>
      </div>
 
-     <!-- CHOICE MODE: Planning screen -->
+     <!-- CHOICE MODE: Round-by-round selection -->
      <div v-if="isChoiceMode && workshops.length > 0 && !planningConfirmed" class="fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300 mx-4 max-h-[90vh] flex flex-col">
-           <div class="p-6 pb-3 flex-shrink-0">
-              <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Planifiez vos ateliers</h2>
-              <p class="text-gray-500 text-center text-sm md:text-base">Choisissez un atelier pour chaque tour. Chaque atelier ne peut être fait qu'une seule fois.</p>
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-300 mx-4">
+
+           <!-- Warning if no rounds configured -->
+           <div v-if="choiceTotalRounds === 0" class="p-4 bg-amber-50 rounded-xl border border-amber-200 text-center">
+              <p class="text-amber-800 font-medium text-sm">L'enseignant n'a pas encore configuré le nombre de tours. Veuillez patienter.</p>
            </div>
-
-           <div class="flex-1 overflow-y-auto px-6 pb-3 space-y-4 custom-scrollbar">
-              <!-- Warning if no rounds configured -->
-              <div v-if="choiceTotalRounds === 0" class="p-4 bg-amber-50 rounded-xl border border-amber-200 text-center">
-                 <p class="text-amber-800 font-medium text-sm">L'enseignant n'a pas encore configuré le nombre de tours. Veuillez patienter.</p>
-              </div>
-              <div v-else-if="choiceTotalRounds > workshops.length" class="p-4 bg-amber-50 rounded-xl border border-amber-200 text-center">
-                 <p class="text-amber-800 font-medium text-sm">Le nombre de tours ({{ choiceTotalRounds }}) dépasse le nombre d'ateliers disponibles ({{ workshops.length }}). Veuillez signaler ce problème à l'enseignant.</p>
-              </div>
-              <div v-for="round in choiceTotalRounds" :key="round" class="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-bold text-gray-700 flex items-center">
-                       <span class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm mr-2 border border-blue-200">{{ round }}</span>
-                       Tour {{ round }}
-                    </h3>
-                    <span v-if="planningSelections[round]" class="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                       {{ workshops.find(w => w.id === planningSelections[round])?.exercises?.name }}
-                    </span>
-                 </div>
-
-                 <div class="grid grid-cols-2 gap-2">
-                    <button
-                      v-for="w in workshops"
-                      :key="w.id"
-                      @click="isWorkshopAvailableForRound(w.id, round) && selectWorkshopForRound(round, w.id)"
-                      :disabled="!isWorkshopAvailableForRound(w.id, round) && planningSelections[round] !== w.id"
-                      class="p-3 rounded-lg border-2 text-left text-sm transition-all"
-                      :class="[
-                        planningSelections[round] === w.id
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-1 ring-emerald-200'
-                          : (!isWorkshopAvailableForRound(w.id, round)
-                            ? 'opacity-40 cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400'
-                            : 'bg-white border-gray-200 hover:border-emerald-300 cursor-pointer text-gray-700')
-                      ]"
-                    >
-                      <span class="block font-bold text-xs md:text-sm leading-tight">{{ w.exercises?.name }}</span>
-                      <span class="text-[10px] text-gray-400 mt-0.5 block">Atelier {{ workshops.indexOf(w) + 1 }}</span>
-                    </button>
-                 </div>
-              </div>
+           <div v-else-if="choiceTotalRounds > workshops.length" class="p-4 bg-amber-50 rounded-xl border border-amber-200 text-center">
+              <p class="text-amber-800 font-medium text-sm">Le nombre de tours ({{ choiceTotalRounds }}) dépasse le nombre d'ateliers disponibles ({{ workshops.length }}). Veuillez signaler ce problème à l'enseignant.</p>
            </div>
+           <template v-else>
+              <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Tour {{ currentPlanningRound }} / {{ choiceTotalRounds }}</h2>
+              <p class="text-gray-500 text-center mb-6 text-sm md:text-base">Quel atelier choisissez-vous pour ce tour ?</p>
 
-           <div class="p-6 pt-3 flex-shrink-0 border-t border-gray-100">
-              <button
-                @click="confirmPlanning"
-                :disabled="!allRoundsFilled || isConfirming"
-                class="w-full py-3.5 rounded-xl font-bold text-white transition-all shadow-lg active:scale-95 flex items-center justify-center"
-                :class="allRoundsFilled && !isConfirming ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 'bg-gray-300 cursor-not-allowed shadow-none'"
-              >
-                <Loader2 v-if="isConfirming" :size="20" class="animate-spin mr-2" />
-                {{ isConfirming ? 'Validation...' : 'Valider ma programmation' }}
+              <!-- Back button -->
+              <button v-if="currentPlanningRound > 1"
+                      @click="goBackRound"
+                      class="mb-4 text-sm text-gray-500 hover:text-gray-700 flex items-center transition-colors">
+                <ArrowLeft :size="16" class="mr-1" /> Tour précédent
               </button>
-           </div>
+
+              <!-- Workshop buttons -->
+              <div class="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                 <button
+                   v-for="(w, idx) in workshops"
+                   :key="w.id"
+                   @click="isWorkshopAvailableForRound(w.id, currentPlanningRound) && selectRoundWorkshop(w.id)"
+                   :disabled="!isWorkshopAvailableForRound(w.id, currentPlanningRound)"
+                   class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center transition-all group text-left relative overflow-hidden"
+                   :class="!isWorkshopAvailableForRound(w.id, currentPlanningRound)
+                     ? 'opacity-50 cursor-not-allowed bg-gray-100 grayscale'
+                     : 'hover:bg-emerald-50 hover:border-emerald-500'"
+                 >
+                    <div v-if="!isWorkshopAvailableForRound(w.id, currentPlanningRound)"
+                         class="absolute inset-0 bg-gray-200/50 backdrop-blur-[1px] z-10 flex items-center justify-center font-bold text-gray-500 uppercase tracking-widest -rotate-12 border-2 border-gray-300 rounded-xl m-2">
+                       Déjà choisi
+                    </div>
+
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg mr-4 border border-emerald-200 group-hover:scale-110 transition-transform">
+                       {{ idx + 1 }}
+                    </div>
+                    <div>
+                       <span class="block font-bold text-gray-900 text-lg group-hover:text-emerald-900">{{ w.exercises?.name }}</span>
+                       <span class="text-xs text-gray-400 font-medium uppercase tracking-wider">Atelier {{ idx + 1 }}</span>
+                    </div>
+                 </button>
+              </div>
+
+              <!-- Progress dots -->
+              <div class="flex justify-center mt-5 space-x-2">
+                 <div v-for="r in choiceTotalRounds" :key="r"
+                      class="w-3 h-3 rounded-full transition-all"
+                      :class="r < currentPlanningRound ? 'bg-emerald-500' : (r === currentPlanningRound ? 'bg-emerald-300 ring-2 ring-emerald-200' : 'bg-gray-200')">
+                 </div>
+              </div>
+           </template>
         </div>
      </div>
 
@@ -299,12 +296,12 @@
             </div>
             
             <div v-if="!solvedWorkshops.has(workshop.id)">
-               <div class="space-y-4">
+               <div v-if="isMuscleGameEnabled" class="space-y-4">
                  <div v-for="type in ['principal', 'secondaire', 'tertiaire']" :key="type">
                     <label class="text-xs uppercase font-bold text-gray-500 mb-1.5 block tracking-wide">Muscle {{ type }}</label>
                     <div class="relative">
                        <!-- Dropdown Trigger -->
-                       <button 
+                       <button
                          @click="openDropdown === `${workshop.id}-${type}` ? openDropdown = null : openDropdown = `${workshop.id}-${type}`"
                          class="w-full text-left px-4 py-3 rounded-xl border flex items-center justify-between transition-all"
                          :class="answers[workshop.id]?.[type]
@@ -319,15 +316,15 @@
                        <!-- Teleport dropdown to body to avoid any scroll/overflow issues -->
                        <Teleport to="body">
                          <!-- Backdrop to close -->
-                         <div 
-                           v-if="openDropdown === `${workshop.id}-${type}`" 
-                           class="fixed inset-0 z-[9998] bg-black/50" 
+                         <div
+                           v-if="openDropdown === `${workshop.id}-${type}`"
+                           class="fixed inset-0 z-[9998] bg-black/50"
                            @click="openDropdown = null"
                          ></div>
-                         
+
                          <!-- Dropdown Modal -->
-                         <div 
-                           v-if="openDropdown === `${workshop.id}-${type}`" 
+                         <div
+                           v-if="openDropdown === `${workshop.id}-${type}`"
                            class="fixed z-[9999] inset-x-0 bottom-0 bg-white rounded-t-2xl shadow-2xl max-h-[70vh] flex flex-col animate-in slide-in-from-bottom duration-200"
                            @touchmove.stop
                          >
@@ -359,19 +356,19 @@
                  </div>
                </div>
 
-               <button 
+               <button
                  @click="submitWorkshop(workshop)"
                  class="w-full mt-8 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-700/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                 :disabled="!isComplete(workshop.id)"
+                 :disabled="isMuscleGameEnabled && !isComplete(workshop.id)"
                >
-                 Valider mes réponses
+                 {{ isMuscleGameEnabled ? 'Valider mes réponses' : 'Valider' }}
                </button>
             </div>
             
             <!-- Result Display -->
             <div v-else class="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center mt-2">
                <span class="text-emerald-700 font-bold block mb-1 text-lg">Terminé !</span>
-               <span class="text-emerald-600/80 text-sm font-medium block mb-4">Points gagnés : +{{ workshopPoints[workshop.id] || 0 }} pts</span>
+               <span v-if="isMuscleGameEnabled" class="text-emerald-600/80 text-sm font-medium block mb-4">Points gagnés : +{{ workshopPoints[workshop.id] || 0 }} pts</span>
                
                <!-- Placement & Respiration (Visible après validation) -->
                <div class="space-y-3 text-left">
@@ -728,7 +725,8 @@
     </button>
 
     <!-- Muscle Sheet FAB -->
-    <button 
+    <button
+      v-if="isMuscleGameEnabled"
       @click="showMuscleSheet = true"
       class="fixed bottom-24 right-4 bg-white hover:bg-gray-50 text-white w-14 h-14 md:w-16 md:h-16 rounded-full shadow-2xl shadow-emerald-900/20 transition-all hover:scale-110 active:scale-95 z-40 flex items-center justify-center border-4 border-white overflow-hidden"
       title="Fiche Muscle"
@@ -831,7 +829,7 @@ import { supabase } from '../../supabase'
 import { calculateTimerState, TIMER_COLORS, playTimerSound, unlockAudio } from '../../utils/timer'
 import { useStudentStore } from '../../stores/student'
 import { MUSCLE_LIST } from '../../constants/muscles'
-import { User, Timer, Trophy, Loader2, CheckCircle2, LogOut, RotateCcw, Play, Pause, Info, X, ChevronDown, Target, ClipboardList, Shield, Clock, Wind, AlertTriangle, Dumbbell } from 'lucide-vue-next'
+import { User, Timer, Trophy, Loader2, CheckCircle2, LogOut, RotateCcw, Play, Pause, Info, X, ChevronDown, Target, ClipboardList, Shield, Clock, Wind, AlertTriangle, Dumbbell, ArrowLeft } from 'lucide-vue-next'
 import CounterInput from '../../components/CounterInput.vue'
 
 const route = useRoute()
@@ -882,10 +880,12 @@ watch(() => roomConfig.value?.rotation_mode, (newMode, oldMode) => {
     planningConfirmed.value = false
     planningSelections.value = {}
     workshopBookings.value = []
+    currentPlanningRound.value = 1
   }
   // Reset imposed-mode state when switching away from imposed
   if (newMode === 'choice') {
     startWorkshopId.value = null
+    currentPlanningRound.value = 1
   }
   currentWorkshopIndex.value = 0
 })
@@ -936,6 +936,8 @@ const isConfirming = ref(false)        // Prevents double-click on confirm
 
 const isChoiceMode = computed(() => roomConfig.value?.rotation_mode === 'choice')
 const choiceTotalRounds = computed(() => roomConfig.value?.total_rounds || 0)
+const isMuscleGameEnabled = computed(() => roomConfig.value?.muscle_game_enabled !== false)
+const currentPlanningRound = ref(1)
 
 // Workshops booked by OTHER students for each round
 const bookedByOthersPerRound = computed(() => {
@@ -970,57 +972,65 @@ const isWorkshopAvailableForRound = (workshopId, roundNumber) => {
   return true
 }
 
-const selectWorkshopForRound = (roundNumber, workshopId) => {
-  if (planningSelections.value[roundNumber] === workshopId) {
-    // Deselect if clicking same workshop
-    delete planningSelections.value[roundNumber]
-  } else {
-    planningSelections.value[roundNumber] = workshopId
-  }
-}
-
-const confirmPlanning = async () => {
-  if (!allRoundsFilled.value || !studentInfo.value?.id || isConfirming.value) return
+const selectRoundWorkshop = async (workshopId) => {
+  if (isConfirming.value || !studentInfo.value?.id) return
   isConfirming.value = true
 
-  const inserts = []
-  for (let r = 1; r <= choiceTotalRounds.value; r++) {
-    inserts.push({
-      room_id: route.params.id,
-      student_id: studentInfo.value.id,
-      workshop_id: planningSelections.value[r],
-      round_number: r
-    })
-  }
+  const round = currentPlanningRound.value
+  planningSelections.value[round] = workshopId
 
+  // Save immediately to DB for real-time visibility
   const { error } = await supabase
     .from('workshop_bookings')
-    .insert(inserts)
+    .upsert({
+      room_id: route.params.id,
+      student_id: studentInfo.value.id,
+      workshop_id: workshopId,
+      round_number: round
+    }, { onConflict: 'room_id,student_id,round_number' })
 
   if (error) {
-    // Likely a constraint violation (race condition)
+    // Race condition: another group just booked this workshop for this round
     await fetchAllBookings()
-    // Clear conflicting selections
-    for (let r = 1; r <= choiceTotalRounds.value; r++) {
-      const wId = planningSelections.value[r]
-      if (wId && bookedByOthersPerRound.value[r]?.has(wId)) {
-        delete planningSelections.value[r]
-      }
-    }
+    delete planningSelections.value[round]
     isConfirming.value = false
-    showFeedback('Conflit', "Un autre groupe vient de réserver un de vos ateliers. Veuillez modifier votre choix.", 'warning')
+    showFeedback('Conflit', "Cet atelier vient d'être réservé par un autre groupe. Choisissez-en un autre.", 'warning')
     return
   }
 
-  planningConfirmed.value = true
-  // Re-fetch from DB to get proper IDs
-  await fetchMyBookings()
-  // Set startWorkshopId for compatibility (first round workshop)
-  startWorkshopId.value = planningSelections.value[1]
-  currentWorkshopIndex.value = 0
   isConfirming.value = false
-  // Unlock audio for timer sounds
-  unlockAudio()
+
+  // Advance to next round or finalize
+  if (round < choiceTotalRounds.value) {
+    currentPlanningRound.value = round + 1
+  } else {
+    // All rounds selected and saved individually
+    planningConfirmed.value = true
+    await fetchMyBookings()
+    startWorkshopId.value = planningSelections.value[1]
+    currentWorkshopIndex.value = 0
+    unlockAudio()
+  }
+}
+
+const goBackRound = async () => {
+  const prevRound = currentPlanningRound.value - 1
+  if (prevRound < 1) return
+
+  // Delete the booking for the previous round from DB
+  const workshopId = planningSelections.value[prevRound]
+  if (workshopId) {
+    await supabase
+      .from('workshop_bookings')
+      .delete()
+      .eq('room_id', route.params.id)
+      .eq('student_id', studentInfo.value.id)
+      .eq('round_number', prevRound)
+
+    delete planningSelections.value[prevRound]
+  }
+
+  currentPlanningRound.value = prevRound
 }
 
 const fetchAllBookings = async () => {
@@ -1042,11 +1052,18 @@ const fetchMyBookings = async () => {
 
   if (data && data.length > 0) {
     workshopBookings.value = data
-    planningConfirmed.value = true
     data.forEach(b => {
       planningSelections.value[b.round_number] = b.workshop_id
     })
-    startWorkshopId.value = data[0].workshop_id
+    if (data.length >= choiceTotalRounds.value && choiceTotalRounds.value > 0) {
+      // All rounds completed
+      planningConfirmed.value = true
+      startWorkshopId.value = data[0].workshop_id
+    } else {
+      // Partial planning — resume from where they left off
+      planningConfirmed.value = false
+      currentPlanningRound.value = data.length + 1
+    }
   }
 }
 
@@ -1247,47 +1264,49 @@ const submitWorkshop = async (workshop) => {
 
   const userRes = answers.value[workshop.id]
   let points = 0
-  
-  const normalize = (s) => s?.toLowerCase().trim()
-  
-  const expected = {
-    p: normalize(workshop.muscle_primary),
-    s: normalize(workshop.muscle_secondary),
-    t: normalize(workshop.muscle_tertiary)
-  }
-  
-  const actual = {
-    p: normalize(userRes.principal),
-    s: normalize(userRes.secondaire),
-    t: normalize(userRes.tertiaire)
-  }
 
-  const pMatch = expected.p === actual.p
-  const sMatch = expected.s === actual.s
-  const tMatch = expected.t === actual.t
+  if (isMuscleGameEnabled.value) {
+    const normalize = (s) => s?.toLowerCase().trim()
 
-  // New scoring system: no bonus for all correct, individual points per position
-  const allExpected = [expected.p, expected.s, expected.t].filter(Boolean)
-  
-  // Principal: 50pts if correct, 1pt if found but wrong position
-  if (pMatch) {
-    points += 50
-  } else if (allExpected.includes(actual.p)) {
-    points += 1
-  }
-  
-  // Secondaire: 10pts if correct, 1pt if found but wrong position
-  if (sMatch) {
-    points += 10
-  } else if (allExpected.includes(actual.s)) {
-    points += 1
-  }
-  
-  // Tertiaire: 5pts if correct, 1pt if found but wrong position
-  if (tMatch) {
-    points += 5
-  } else if (allExpected.includes(actual.t)) {
-    points += 1
+    const expected = {
+      p: normalize(workshop.muscle_primary),
+      s: normalize(workshop.muscle_secondary),
+      t: normalize(workshop.muscle_tertiary)
+    }
+
+    const actual = {
+      p: normalize(userRes.principal),
+      s: normalize(userRes.secondaire),
+      t: normalize(userRes.tertiaire)
+    }
+
+    const pMatch = expected.p === actual.p
+    const sMatch = expected.s === actual.s
+    const tMatch = expected.t === actual.t
+
+    // New scoring system: no bonus for all correct, individual points per position
+    const allExpected = [expected.p, expected.s, expected.t].filter(Boolean)
+
+    // Principal: 50pts if correct, 1pt if found but wrong position
+    if (pMatch) {
+      points += 50
+    } else if (allExpected.includes(actual.p)) {
+      points += 1
+    }
+
+    // Secondaire: 10pts if correct, 1pt if found but wrong position
+    if (sMatch) {
+      points += 10
+    } else if (allExpected.includes(actual.s)) {
+      points += 1
+    }
+
+    // Tertiaire: 5pts if correct, 1pt if found but wrong position
+    if (tMatch) {
+      points += 5
+    } else if (allExpected.includes(actual.t)) {
+      points += 1
+    }
   }
 
   const previousPoints = workshopPoints.value[workshop.id] || 0
@@ -1300,9 +1319,9 @@ const submitWorkshop = async (workshop) => {
       student_id: studentInfo.value.id,
       workshop_id: workshop.id,
       room_id: route.params.id,
-      answer_principal: userRes.principal,
-      answer_secondaire: userRes.secondaire,
-      answer_tertiaire: userRes.tertiaire,
+      answer_principal: isMuscleGameEnabled.value ? userRes.principal : '',
+      answer_secondaire: isMuscleGameEnabled.value ? userRes.secondaire : '',
+      answer_tertiaire: isMuscleGameEnabled.value ? userRes.tertiaire : '',
       points_earned: points
     }, { onConflict: 'student_id,workshop_id' })
 
