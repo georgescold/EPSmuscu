@@ -74,14 +74,15 @@
     <main class="p-4 max-w-2xl mx-auto space-y-6">
       
       <!-- Start Workshop Modal -->
-     <div v-if="workshops.length > 0 && !startWorkshopId" class="fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-4">
+     <!-- IMPOSED MODE: Original start workshop picker -->
+     <div v-if="!isChoiceMode && workshops.length > 0 && !startWorkshopId" class="fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-300 mx-4">
-           <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Départ 🏋️‍♂️</h2>
+           <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Départ</h2>
            <p class="text-gray-500 text-center mb-6 text-sm md:text-base">À quel atelier votre groupe commence-t-il ?</p>
-           
+
            <div class="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-              <button 
-                v-for="(w, idx) in workshops" 
+              <button
+                v-for="(w, idx) in workshops"
                 :key="w.id"
                 @click="!takenWorkshopIds.has(w.id) && setStartWorkshop(w.id)"
                 :disabled="takenWorkshopIds.has(w.id)"
@@ -99,6 +100,69 @@
                     <span class="block font-bold text-gray-900 text-lg group-hover:text-emerald-900">{{ w.exercises?.name }}</span>
                     <span class="text-xs text-gray-400 font-medium uppercase tracking-wider">Atelier {{ idx + 1 }}</span>
                  </div>
+              </button>
+           </div>
+        </div>
+     </div>
+
+     <!-- CHOICE MODE: Planning screen -->
+     <div v-if="isChoiceMode && workshops.length > 0 && !planningConfirmed" class="fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300 mx-4 max-h-[90vh] flex flex-col">
+           <div class="p-6 pb-3 flex-shrink-0">
+              <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2 text-center">Planifiez vos ateliers</h2>
+              <p class="text-gray-500 text-center text-sm md:text-base">Choisissez un atelier pour chaque tour. Chaque atelier ne peut être fait qu'une seule fois.</p>
+           </div>
+
+           <div class="flex-1 overflow-y-auto px-6 pb-3 space-y-4 custom-scrollbar">
+              <!-- Warning if no rounds configured -->
+              <div v-if="choiceTotalRounds === 0" class="p-4 bg-amber-50 rounded-xl border border-amber-200 text-center">
+                 <p class="text-amber-800 font-medium text-sm">L'enseignant n'a pas encore configuré le nombre de tours. Veuillez patienter.</p>
+              </div>
+              <div v-else-if="choiceTotalRounds > workshops.length" class="p-4 bg-amber-50 rounded-xl border border-amber-200 text-center">
+                 <p class="text-amber-800 font-medium text-sm">Le nombre de tours ({{ choiceTotalRounds }}) dépasse le nombre d'ateliers disponibles ({{ workshops.length }}). Veuillez signaler ce problème à l'enseignant.</p>
+              </div>
+              <div v-for="round in choiceTotalRounds" :key="round" class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                 <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-gray-700 flex items-center">
+                       <span class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm mr-2 border border-blue-200">{{ round }}</span>
+                       Tour {{ round }}
+                    </h3>
+                    <span v-if="planningSelections[round]" class="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                       {{ workshops.find(w => w.id === planningSelections[round])?.exercises?.name }}
+                    </span>
+                 </div>
+
+                 <div class="grid grid-cols-2 gap-2">
+                    <button
+                      v-for="w in workshops"
+                      :key="w.id"
+                      @click="isWorkshopAvailableForRound(w.id, round) && selectWorkshopForRound(round, w.id)"
+                      :disabled="!isWorkshopAvailableForRound(w.id, round) && planningSelections[round] !== w.id"
+                      class="p-3 rounded-lg border-2 text-left text-sm transition-all"
+                      :class="[
+                        planningSelections[round] === w.id
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-1 ring-emerald-200'
+                          : (!isWorkshopAvailableForRound(w.id, round)
+                            ? 'opacity-40 cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400'
+                            : 'bg-white border-gray-200 hover:border-emerald-300 cursor-pointer text-gray-700')
+                      ]"
+                    >
+                      <span class="block font-bold text-xs md:text-sm leading-tight">{{ w.exercises?.name }}</span>
+                      <span class="text-[10px] text-gray-400 mt-0.5 block">Atelier {{ workshops.indexOf(w) + 1 }}</span>
+                    </button>
+                 </div>
+              </div>
+           </div>
+
+           <div class="p-6 pt-3 flex-shrink-0 border-t border-gray-100">
+              <button
+                @click="confirmPlanning"
+                :disabled="!allRoundsFilled || isConfirming"
+                class="w-full py-3.5 rounded-xl font-bold text-white transition-all shadow-lg active:scale-95 flex items-center justify-center"
+                :class="allRoundsFilled && !isConfirming ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 'bg-gray-300 cursor-not-allowed shadow-none'"
+              >
+                <Loader2 v-if="isConfirming" :size="20" class="animate-spin mr-2" />
+                {{ isConfirming ? 'Validation...' : 'Valider ma programmation' }}
               </button>
            </div>
         </div>
@@ -409,9 +473,9 @@
                            <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Charges</label>
                            <div class="flex items-center">
                               <input 
-                                type="text" 
+                                type="text" inputmode="numeric" pattern="[0-9]*"
                                 v-model="getEntry(workshop.id, seriesNum).charge"
-                                @blur="updateEntry(workshop.id, seriesNum)"
+                                @blur="sanitizeNumericField(workshop.id, seriesNum, 'charge'); updateEntry(workshop.id, seriesNum)"
                                 placeholder="0"
                                 class="w-16 text-sm bg-white border border-gray-300 rounded-l-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-bold text-center"
                               />
@@ -423,9 +487,9 @@
                         <div v-if="hasReps">
                            <label class="block text-xs uppercase text-gray-400 font-bold mb-1">Répétitions</label>
                            <input 
-                             type="text" 
+                             type="text" inputmode="numeric" pattern="[0-9]*"
                              v-model="getEntry(workshop.id, seriesNum).repetitions"
-                             @blur="updateEntry(workshop.id, seriesNum)"
+                             @blur="sanitizeNumericField(workshop.id, seriesNum, 'repetitions'); updateEntry(workshop.id, seriesNum)"
                              placeholder="10"
                              class="w-full text-sm bg-white border border-gray-300 rounded-lg px-2 py-2 focus:ring-1 focus:ring-emerald-500 font-bold text-center"
                            />
@@ -810,6 +874,22 @@ const notebookEntries = ref({})
 // const otherStudents = ref([]) // Removed as requested
 const selectedCoach = ref('')
 
+// Watch for mode changes (teacher switches imposed <-> choice mid-session)
+watch(() => roomConfig.value?.rotation_mode, (newMode, oldMode) => {
+  if (!oldMode || newMode === oldMode) return
+  // Reset choice-mode state when switching away from choice
+  if (newMode !== 'choice') {
+    planningConfirmed.value = false
+    planningSelections.value = {}
+    workshopBookings.value = []
+  }
+  // Reset imposed-mode state when switching away from imposed
+  if (newMode === 'choice') {
+    startWorkshopId.value = null
+  }
+  currentWorkshopIndex.value = 0
+})
+
 // Group Logic
 const groupMembers = computed(() => {
   if (!studentInfo.value?.name) return []
@@ -847,6 +927,129 @@ const feedbackState = ref({ isVisible: false, title: '', message: '', type: 'suc
 const takenWorkshopIds = ref(new Set())
 // Workshop advancement is now controlled by 'workshop_change' action in timer phases
 
+// Choice mode state
+const workshopBookings = ref([])       // Confirmed bookings for this student (array sorted by round_number)
+const allBookings = ref([])            // All bookings in the room (for conflict detection)
+const planningConfirmed = ref(false)   // Whether student confirmed their planning
+const planningSelections = ref({})     // Temporary: { [roundNumber]: workshopId }
+const isConfirming = ref(false)        // Prevents double-click on confirm
+
+const isChoiceMode = computed(() => roomConfig.value?.rotation_mode === 'choice')
+const choiceTotalRounds = computed(() => roomConfig.value?.total_rounds || 0)
+
+// Workshops booked by OTHER students for each round
+const bookedByOthersPerRound = computed(() => {
+  const result = {}
+  for (let r = 1; r <= choiceTotalRounds.value; r++) {
+    result[r] = new Set()
+  }
+  allBookings.value.forEach(b => {
+    if (b.student_id !== studentInfo.value?.id) {
+      if (!result[b.round_number]) result[b.round_number] = new Set()
+      result[b.round_number].add(b.workshop_id)
+    }
+  })
+  return result
+})
+
+// All rounds filled?
+const allRoundsFilled = computed(() => {
+  for (let r = 1; r <= choiceTotalRounds.value; r++) {
+    if (!planningSelections.value[r]) return false
+  }
+  return choiceTotalRounds.value > 0
+})
+
+const isWorkshopAvailableForRound = (workshopId, roundNumber) => {
+  // Blocked if another group already booked it for this round
+  if (bookedByOthersPerRound.value[roundNumber]?.has(workshopId)) return false
+  // Blocked if this group already chose it for ANOTHER round
+  for (const [r, wId] of Object.entries(planningSelections.value)) {
+    if (parseInt(r) !== roundNumber && wId === workshopId) return false
+  }
+  return true
+}
+
+const selectWorkshopForRound = (roundNumber, workshopId) => {
+  if (planningSelections.value[roundNumber] === workshopId) {
+    // Deselect if clicking same workshop
+    delete planningSelections.value[roundNumber]
+  } else {
+    planningSelections.value[roundNumber] = workshopId
+  }
+}
+
+const confirmPlanning = async () => {
+  if (!allRoundsFilled.value || !studentInfo.value?.id || isConfirming.value) return
+  isConfirming.value = true
+
+  const inserts = []
+  for (let r = 1; r <= choiceTotalRounds.value; r++) {
+    inserts.push({
+      room_id: route.params.id,
+      student_id: studentInfo.value.id,
+      workshop_id: planningSelections.value[r],
+      round_number: r
+    })
+  }
+
+  const { error } = await supabase
+    .from('workshop_bookings')
+    .insert(inserts)
+
+  if (error) {
+    // Likely a constraint violation (race condition)
+    await fetchAllBookings()
+    // Clear conflicting selections
+    for (let r = 1; r <= choiceTotalRounds.value; r++) {
+      const wId = planningSelections.value[r]
+      if (wId && bookedByOthersPerRound.value[r]?.has(wId)) {
+        delete planningSelections.value[r]
+      }
+    }
+    isConfirming.value = false
+    showFeedback('Conflit', "Un autre groupe vient de réserver un de vos ateliers. Veuillez modifier votre choix.", 'warning')
+    return
+  }
+
+  planningConfirmed.value = true
+  // Re-fetch from DB to get proper IDs
+  await fetchMyBookings()
+  // Set startWorkshopId for compatibility (first round workshop)
+  startWorkshopId.value = planningSelections.value[1]
+  currentWorkshopIndex.value = 0
+  isConfirming.value = false
+  // Unlock audio for timer sounds
+  unlockAudio()
+}
+
+const fetchAllBookings = async () => {
+  const { data } = await supabase
+    .from('workshop_bookings')
+    .select('*')
+    .eq('room_id', route.params.id)
+  if (data) allBookings.value = data
+}
+
+const fetchMyBookings = async () => {
+  if (!studentInfo.value?.id) return
+  const { data } = await supabase
+    .from('workshop_bookings')
+    .select('*')
+    .eq('room_id', route.params.id)
+    .eq('student_id', studentInfo.value.id)
+    .order('round_number')
+
+  if (data && data.length > 0) {
+    workshopBookings.value = data
+    planningConfirmed.value = true
+    data.forEach(b => {
+      planningSelections.value[b.round_number] = b.workshop_id
+    })
+    startWorkshopId.value = data[0].workshop_id
+  }
+}
+
 const hasPlacement = computed(() => {
    return roomConfig.value?.notebook_visible_placement !== false
 })
@@ -876,8 +1079,25 @@ const seriesCount = computed(() => {
 })
 
 const orderedWorkshops = computed(() => {
+  // Choice mode: use bookings order
+  if (isChoiceMode.value) {
+    if (!planningConfirmed.value || workshopBookings.value.length === 0) return []
+    const roundIndex = currentWorkshopIndex.value % workshopBookings.value.length
+    const booking = workshopBookings.value[roundIndex]
+    if (!booking) return []
+    const workshop = workshops.value.find(w => w.id === booking.workshop_id)
+    if (workshop) return [workshop]
+    // Workshop was deleted — try to find any valid booking
+    for (let i = 0; i < workshopBookings.value.length; i++) {
+      const fallback = workshops.value.find(w => w.id === workshopBookings.value[i]?.workshop_id)
+      if (fallback) return [fallback]
+    }
+    return []
+  }
+
+  // Imposed mode (existing logic)
   if (!startWorkshopId.value || workshops.value.length === 0) return []
-  
+
   const startIdx = workshops.value.findIndex(w => w.id === startWorkshopId.value)
   if (startIdx === -1) return workshops.value
 
@@ -885,7 +1105,7 @@ const orderedWorkshops = computed(() => {
     ...workshops.value.slice(startIdx),
     ...workshops.value.slice(0, startIdx)
   ]
-  
+
   // Return only the current one based on index loop
   const index = currentWorkshopIndex.value % ordered.length
   return [ordered[index]]
@@ -1167,6 +1387,15 @@ const getEmbedUrl = (url) => {
 }
 
 // Notebook Logic
+// Sanitize numeric text fields (charges, repetitions) — strip non-numeric characters
+const sanitizeNumericField = (workshopId, seriesNumber, field) => {
+  const entry = getEntry(workshopId, seriesNumber)
+  if (entry[field]) {
+    // Keep only digits and dots (for decimal charges like "2.5")
+    entry[field] = String(entry[field]).replace(/[^0-9.,]/g, '')
+  }
+}
+
 const getEntry = (workshopId, seriesNumber = 1) => {
   const key = `${workshopId}_${seriesNumber}`
   if (!notebookEntries.value[key]) {
@@ -1210,7 +1439,10 @@ const updateEntry = async (workshopId, seriesNumber = 1) => {
     
   console.log(`[DEBUG] Saved entry for ${key} (Series ${seriesNumber}) - Performer: ${activePerformer.value}`, { error })
     
-  if (error) console.error("Error saving notebook:", error)
+  if (error) {
+    console.error("Error saving notebook:", error)
+    showFeedback('Erreur de sauvegarde', 'Impossible de sauvegarder votre carnet. Vérifiez votre connexion.', 'warning')
+  }
 }
 
 const fetchNotebookEntries = async () => {
@@ -1234,7 +1466,25 @@ const fetchNotebookEntries = async () => {
        // Use workshopId_seriesNumber as key
        const series = e.series_number || 1
        const key = `${e.workshop_id}_${series}`
-       if (notebookEntries.value) notebookEntries.value[key] = e
+       // Merge with defaults to ensure all fields exist and types are correct
+       if (notebookEntries.value) {
+         notebookEntries.value[key] = {
+           level_selected: '',
+           placement_errors: 0,
+           tempo_errors: 0,
+           respiration_errors: 0,
+           feeling: null,
+           charge: '',
+           repetitions: '',
+           series_number: series,
+           ...e,
+           // Ensure numeric fields are numbers
+           placement_errors: typeof e.placement_errors === 'number' ? e.placement_errors : parseInt(e.placement_errors) || 0,
+           tempo_errors: typeof e.tempo_errors === 'number' ? e.tempo_errors : parseInt(e.tempo_errors) || 0,
+           respiration_errors: typeof e.respiration_errors === 'number' ? e.respiration_errors : parseInt(e.respiration_errors) || 0,
+           feeling: e.feeling != null ? Number(e.feeling) : null,
+         }
+       }
        if (e.coach_name) selectedCoach.value = e.coach_name
     })
     console.log(`[DEBUG] Loaded ${entries.length} entries for ${activePerformer.value}. Keys:`, Object.keys(notebookEntries.value))
@@ -1394,7 +1644,9 @@ onMounted(async () => {
   await Promise.all([
     fetchWorkshops(),
     safeFetchTakenWorkshops(),
-    fetchRoomData() // Fetch config immediately
+    fetchRoomData(), // Fetch config immediately
+    fetchAllBookings(),
+    fetchMyBookings()
   ])
 
   // Timer Subscription
@@ -1427,10 +1679,21 @@ onMounted(async () => {
     )
     .subscribe()
 
+  // Bookings realtime subscription (choice mode conflict detection)
+  supabase
+    .channel(`room-bookings-${roomId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'workshop_bookings', filter: `room_id=eq.${roomId}` },
+      () => {
+        fetchAllBookings()
+      }
+    )
+    .subscribe()
+
   // Resync timer & config when tab becomes visible (handles screen off/on, tab switch, connection drops)
   handleVisibilityChange = () => {
     if (document.visibilityState === 'visible') {
       fetchRoomData()
+      fetchAllBookings()
     }
   }
   document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -1500,6 +1763,7 @@ onBeforeUnmount(() => {
   supabase.channel(`room-timer-${route.params.id}`).unsubscribe()
   supabase.channel(`room-locks-${route.params.id}`).unsubscribe()
   supabase.channel(`room-workshops-${route.params.id}`).unsubscribe()
+  supabase.channel(`room-bookings-${route.params.id}`).unsubscribe()
   if (handleVisibilityChange) {
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   }

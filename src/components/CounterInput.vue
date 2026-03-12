@@ -9,9 +9,9 @@
     
     <span 
       class="font-bold text-xs py-1 min-w-[60px] text-center select-none uppercase tracking-wide"
-      :class="modelValue === 0 ? 'text-emerald-600' : 'text-red-500'"
+      :class="Number(modelValue) === 0 ? 'text-emerald-600' : 'text-red-500'"
     >
-      {{ modelValue === 0 ? 'BON' : 'PAS BON' }}
+      {{ Number(modelValue) === 0 ? 'BON' : 'PAS BON' }}
     </span>
 
     <button 
@@ -37,6 +37,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const toggle = () => {
   // Toggle between 0 (BON) and 1 (PAS BON)
-  emit('update:modelValue', props.modelValue === 0 ? 1 : 0)
+  // Use == for loose comparison to handle string "0" from DB
+  emit('update:modelValue', Number(props.modelValue) === 0 ? 1 : 0)
 }
 </script>

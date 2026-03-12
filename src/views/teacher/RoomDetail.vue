@@ -422,7 +422,61 @@
     </div>
 
       <!-- Config Tab -->
-      <div v-if="activeTab === 'config'" class="max-w-2xl mx-auto">
+      <div v-if="activeTab === 'config'" class="max-w-2xl mx-auto space-y-6">
+
+         <!-- Rotation Mode Config -->
+         <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+              <RotateCcw :size="20" class="mr-2 text-emerald-600" />
+              Mode de rotation
+            </h3>
+            <p class="text-gray-500 text-sm mb-6">Comment les groupes passent-ils d'un atelier à l'autre ?</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+               <button
+                 @click="rotationMode = 'imposed'; updateRotationConfig()"
+                 class="border-2 rounded-xl p-4 text-center font-bold transition-all"
+                 :class="rotationMode === 'imposed'
+                   ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-1 ring-emerald-200'
+                   : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'"
+               >
+                 <span class="block text-base md:text-lg mb-1">Imposée</span>
+                 <span class="text-xs font-normal text-gray-500">Rotation automatique dans l'ordre des ateliers</span>
+               </button>
+               <button
+                 @click="rotationMode = 'choice'; if (!totalRounds) { totalRounds = Math.min(3, workshops.length || 3) }; updateRotationConfig()"
+                 class="border-2 rounded-xl p-4 text-center font-bold transition-all"
+                 :class="rotationMode === 'choice'
+                   ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-1 ring-emerald-200'
+                   : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'"
+               >
+                 <span class="block text-base md:text-lg mb-1">Au choix</span>
+                 <span class="text-xs font-normal text-gray-500">Les élèves planifient leur parcours</span>
+               </button>
+            </div>
+
+            <!-- Total rounds (only for choice mode) -->
+            <div v-if="rotationMode === 'choice'" class="p-4 bg-blue-50 rounded-xl border border-blue-200 animate-in slide-in-from-top-4 duration-300">
+               <div class="flex items-center justify-between">
+                  <div>
+                     <span class="font-bold text-blue-800">Nombre de tours</span>
+                     <p class="text-blue-600 text-xs">Combien d'ateliers chaque groupe fera</p>
+                  </div>
+                  <div class="flex items-center space-x-3">
+                     <button
+                        @click="totalRounds = Math.max(1, totalRounds - 1); updateRotationConfig()"
+                        class="w-8 h-8 rounded-full bg-blue-200 text-blue-800 font-bold hover:bg-blue-300 transition-colors"
+                     >-</button>
+                     <span class="font-mono font-bold text-xl text-blue-800 min-w-[30px] text-center">{{ totalRounds }}</span>
+                     <button
+                        @click="totalRounds = Math.min(workshops.length || 10, totalRounds + 1); updateRotationConfig()"
+                        class="w-8 h-8 rounded-full bg-blue-200 text-blue-800 font-bold hover:bg-blue-300 transition-colors"
+                     >+</button>
+                  </div>
+               </div>
+            </div>
+         </div>
+
          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
             <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
               <Settings :size="20" class="mr-2 text-emerald-600" />
@@ -651,7 +705,7 @@ import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../../supabase'
 import { calculateTimerState, TIMER_COLORS, TIMER_SOUNDS, TIMER_ACTIONS, playTimerSound, unlockAudio } from '../../utils/timer'
-import { ArrowLeft, Plus, Dumbbell, Trash2, X, Loader2, Users, Settings, Pencil, Check, Clock, Play, Pause, Square, Trophy } from 'lucide-vue-next'
+import { ArrowLeft, Plus, Dumbbell, Trash2, X, Loader2, Users, Settings, Pencil, Check, Clock, Play, Pause, Square, Trophy, RotateCcw } from 'lucide-vue-next'
 
 
 const route = useRoute()
@@ -695,6 +749,10 @@ const newWorkshop = ref({
   show_tempo: false
 })
 
+// Rotation mode config
+const rotationMode = ref('imposed')
+const totalRounds = ref(0)
+
 const notebookConfig = ref({
   notebook_enabled: true,
   notebook_visible_level: true,
@@ -737,9 +795,39 @@ const fetchRoomDetails = async () => {
       notebook_series_count: data.notebook_series_count ?? 4,
     }
     
+    // Rotation config
+    rotationMode.value = data.rotation_mode || 'imposed'
+    totalRounds.value = data.total_rounds || 0
+
     // Timer Config & Status Load
     if (data.timer_config) timerConfig.value = data.timer_config
     if (data.timer_status) timerState.value = data.timer_status
+  }
+}
+
+const updateRotationConfig = async () => {
+  const { error } = await supabase
+    .from('rooms')
+    .update({
+      rotation_mode: rotationMode.value,
+      total_rounds: totalRounds.value
+    })
+    .eq('id', roomId)
+  if (error) console.error('Error updating rotation config:', error)
+
+  // Clean up bookings when switching to imposed mode
+  if (rotationMode.value === 'imposed') {
+    await supabase
+      .from('workshop_bookings')
+      .delete()
+      .eq('room_id', roomId)
+  }
+  // Clean up start_workshop_id when switching to choice mode
+  if (rotationMode.value === 'choice') {
+    await supabase
+      .from('students')
+      .update({ start_workshop_id: null })
+      .eq('room_id', roomId)
   }
 }
 

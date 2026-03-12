@@ -130,8 +130,8 @@
                            </td>
                            <td class="px-4 py-3 text-center">
                               <template v-if="roomConfig?.notebook_visible_placement !== false">
-                                 <span v-if="entry.placement_errors != null" :class="entry.placement_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                    {{ entry.placement_errors === 0 ? 'BON' : 'PAS BON' }}
+                                 <span v-if="entry.placement_errors != null" :class="Number(entry.placement_errors) === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
+                                    {{ Number(entry.placement_errors) === 0 ? 'BON' : 'PAS BON' }}
                                  </span>
                                  <span v-else class="text-gray-400">--</span>
                               </template>
@@ -139,8 +139,8 @@
                            </td>
                            <td class="px-4 py-3 text-center">
                               <template v-if="roomConfig?.notebook_visible_tempo !== false">
-                                 <span v-if="entry.tempo_errors != null" :class="entry.tempo_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                    {{ entry.tempo_errors === 0 ? 'BON' : 'PAS BON' }}
+                                 <span v-if="entry.tempo_errors != null" :class="Number(entry.tempo_errors) === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
+                                    {{ Number(entry.tempo_errors) === 0 ? 'BON' : 'PAS BON' }}
                                  </span>
                                  <span v-else class="text-gray-400">--</span>
                               </template>
@@ -148,8 +148,8 @@
                            </td>
                            <td class="px-4 py-3 text-center">
                               <template v-if="roomConfig?.notebook_visible_respiration !== false">
-                                 <span v-if="entry.respiration_errors != null" :class="entry.respiration_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                    {{ entry.respiration_errors === 0 ? 'BON' : 'PAS BON' }}
+                                 <span v-if="entry.respiration_errors != null" :class="Number(entry.respiration_errors) === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
+                                    {{ Number(entry.respiration_errors) === 0 ? 'BON' : 'PAS BON' }}
                                  </span>
                                  <span v-else class="text-gray-400">--</span>
                               </template>
@@ -236,8 +236,8 @@
                               </td>
                               <td class="px-3 py-2 text-center">
                                  <template v-if="roomConfig?.notebook_visible_placement !== false">
-                                    <span v-if="entry.placement_errors != null" :class="entry.placement_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                       {{ entry.placement_errors === 0 ? 'BON' : 'PAS BON' }}
+                                    <span v-if="entry.placement_errors != null" :class="Number(entry.placement_errors) === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
+                                       {{ Number(entry.placement_errors) === 0 ? 'BON' : 'PAS BON' }}
                                     </span>
                                     <span v-else class="text-gray-400 text-xs">--</span>
                                  </template>
@@ -245,8 +245,8 @@
                               </td>
                               <td class="px-3 py-2 text-center">
                                  <template v-if="roomConfig?.notebook_visible_tempo !== false">
-                                    <span v-if="entry.tempo_errors != null" :class="entry.tempo_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                       {{ entry.tempo_errors === 0 ? 'BON' : 'PAS BON' }}
+                                    <span v-if="entry.tempo_errors != null" :class="Number(entry.tempo_errors) === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
+                                       {{ Number(entry.tempo_errors) === 0 ? 'BON' : 'PAS BON' }}
                                     </span>
                                     <span v-else class="text-gray-400 text-xs">--</span>
                                  </template>
@@ -254,8 +254,8 @@
                               </td>
                               <td class="px-3 py-2 text-center">
                                  <template v-if="roomConfig?.notebook_visible_respiration !== false">
-                                    <span v-if="entry.respiration_errors != null" :class="entry.respiration_errors === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
-                                       {{ entry.respiration_errors === 0 ? 'BON' : 'PAS BON' }}
+                                    <span v-if="entry.respiration_errors != null" :class="Number(entry.respiration_errors) === 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'">
+                                       {{ Number(entry.respiration_errors) === 0 ? 'BON' : 'PAS BON' }}
                                     </span>
                                     <span v-else class="text-gray-400 text-xs">--</span>
                                  </template>
