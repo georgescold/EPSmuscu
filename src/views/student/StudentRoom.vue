@@ -963,8 +963,12 @@ const allRoundsFilled = computed(() => {
 })
 
 const isWorkshopAvailableForRound = (workshopId, roundNumber) => {
-  // Blocked only if another group already booked it for THIS round
+  // Blocked if another group already booked it for THIS round
   if (bookedByOthersPerRound.value[roundNumber]?.has(workshopId)) return false
+  // Blocked if THIS group already chose it for a DIFFERENT round (no repeats for same group)
+  for (const [r, wId] of Object.entries(planningSelections.value)) {
+    if (parseInt(r) !== roundNumber && wId === workshopId) return false
+  }
   return true
 }
 
