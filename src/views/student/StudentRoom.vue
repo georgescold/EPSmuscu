@@ -825,26 +825,27 @@
        </div>
 
        <!-- Controls -->
-       <div class="p-6 bg-black/80 flex items-center justify-center space-x-6">
+       <div class="flex-shrink-0 bg-gray-900 border-t border-gray-700" style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom));">
           <!-- Idle: Start recording button -->
-          <template v-if="videoMode === 'idle'">
+          <div v-if="videoMode === 'idle'" class="flex flex-col items-center pt-4 pb-2">
              <button @click="startRecording"
                      class="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-lg shadow-red-600/30 transition-all active:scale-90 ring-4 ring-red-600/30">
                 <Video :size="32" />
              </button>
-             <p class="text-white/60 text-sm absolute bottom-2 left-1/2 -translate-x-1/2">30 sec. max</p>
-          </template>
+             <p class="text-white/50 text-xs mt-2">30 sec. max</p>
+          </div>
 
           <!-- Recording: Stop button -->
-          <template v-if="videoMode === 'recording'">
+          <div v-if="videoMode === 'recording'" class="flex flex-col items-center pt-4 pb-2">
              <button @click="stopRecording"
                      class="w-20 h-20 rounded-full bg-white hover:bg-gray-100 text-red-600 flex items-center justify-center shadow-lg transition-all active:scale-90 ring-4 ring-white/30">
                 <Square :size="32" class="fill-current" />
              </button>
-          </template>
+             <p class="text-white/50 text-xs mt-2">Appuyez pour arrêter</p>
+          </div>
 
           <!-- Preview: Re-record + Delete -->
-          <template v-if="videoMode === 'preview'">
+          <div v-if="videoMode === 'preview'" class="flex items-center justify-center space-x-10 pt-4 pb-2">
              <button @click="deleteVideo"
                      class="flex flex-col items-center space-y-1 text-white/80 hover:text-white transition-colors">
                 <div class="w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center shadow-lg transition-all active:scale-90">
@@ -859,7 +860,7 @@
                 </div>
                 <span class="text-xs font-medium">Supprimer</span>
              </button>
-          </template>
+          </div>
        </div>
     </div>
 
