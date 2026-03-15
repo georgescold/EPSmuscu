@@ -799,9 +799,9 @@
 
 
     <!-- Autoscopy Video Modal -->
-    <div v-if="showVideoModal" class="fixed inset-0 z-[65] bg-black flex flex-col">
+    <div v-if="showVideoModal" class="fixed inset-0 z-[65] bg-black flex flex-col" style="height: 100dvh;">
        <!-- Header -->
-       <div class="flex items-center justify-between p-4 bg-black/80 z-10">
+       <div class="flex-shrink-0 flex items-center justify-between p-4 bg-gray-900 z-10">
           <h3 class="text-white font-bold text-lg">Autoscopie</h3>
           <button @click="closeVideoModal" class="text-white/80 hover:text-white p-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
              <X :size="24" />
@@ -809,19 +809,19 @@
        </div>
 
        <!-- Live camera view (idle + recording) -->
-       <div v-if="videoMode === 'idle' || videoMode === 'recording'" class="flex-1 flex flex-col items-center justify-center relative">
-          <video ref="liveVideoRef" autoplay playsinline muted class="w-full h-full object-cover"></video>
+       <div v-if="videoMode === 'idle' || videoMode === 'recording'" class="flex-1 min-h-0 relative overflow-hidden">
+          <video ref="liveVideoRef" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
 
           <!-- Recording countdown overlay -->
-          <div v-if="videoMode === 'recording'" class="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full font-bold text-lg flex items-center space-x-2 shadow-lg animate-pulse">
+          <div v-if="videoMode === 'recording'" class="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full font-bold text-lg flex items-center space-x-2 shadow-lg animate-pulse z-10">
              <div class="w-3 h-3 bg-white rounded-full"></div>
              <span>{{ videoCountdown }}s</span>
           </div>
        </div>
 
        <!-- Preview playback -->
-       <div v-if="videoMode === 'preview'" class="flex-1 flex flex-col items-center justify-center bg-black">
-          <video ref="playbackVideoRef" :src="recordedVideoUrl" controls playsinline class="w-full h-full object-contain"></video>
+       <div v-if="videoMode === 'preview'" class="flex-1 min-h-0 relative overflow-hidden bg-black">
+          <video ref="playbackVideoRef" :src="recordedVideoUrl" controls playsinline class="absolute inset-0 w-full h-full object-contain"></video>
        </div>
 
        <!-- Controls -->
