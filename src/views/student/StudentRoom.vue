@@ -897,7 +897,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../../supabase'
 import { calculateTimerState, TIMER_COLORS, playTimerSound, unlockAudio } from '../../utils/timer'
@@ -951,33 +951,53 @@ const openVideoModal = async () => {
   showVideoModal.value = true
   videoMode.value = 'idle'
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
-    })
+    let stream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      })
+    } catch (e) {
+      if (e.name === 'OverconstrainedError' || e.name === 'NotFoundError') {
+        // Fallback: try without constraints (front camera)
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      } else {
+        throw e
+      }
+    }
     videoStream.value = stream
-    // Wait for DOM to render the video element
-    await new Promise(r => setTimeout(r, 50))
+    await nextTick()
     if (liveVideoRef.value) {
       liveVideoRef.value.srcObject = stream
     }
   } catch (e) {
     console.error('Camera access error:', e)
-    showFeedback('Erreur caméra', "Impossible d'accéder à la caméra. Vérifiez les permissions.", 'warning')
-    closeVideoModal()
+    let message = "Impossible d'accéder à la caméra."
+    if (e.name === 'NotAllowedError') {
+      message = "Permission caméra refusée. Vérifiez vos paramètres."
+    } else if (e.name === 'NotReadableError') {
+      message = "La caméra est utilisée par une autre application."
+    }
+    showVideoModal.value = false
+    videoMode.value = 'idle'
+    showFeedback('Erreur caméra', message, 'warning')
   }
 }
 
 const startRecording = () => {
-  if (!videoStream.value) return
+  if (!videoStream.value || videoMode.value === 'recording') return // Guard double-click
   recordedChunks.value = []
   videoCountdown.value = 30
 
-  const options = { mimeType: 'video/webm;codecs=vp8' }
-  // Fallback if webm not supported (Safari)
+  // Revoke previous blob URL if any
+  if (recordedVideoUrl.value) {
+    URL.revokeObjectURL(recordedVideoUrl.value)
+    recordedVideoUrl.value = null
+  }
+
   let recorder
   try {
-    recorder = new MediaRecorder(videoStream.value, options)
+    recorder = new MediaRecorder(videoStream.value, { mimeType: 'video/webm;codecs=vp8' })
   } catch (e) {
     try {
       recorder = new MediaRecorder(videoStream.value, { mimeType: 'video/mp4' })
@@ -990,10 +1010,13 @@ const startRecording = () => {
     if (e.data.size > 0) recordedChunks.value.push(e.data)
   }
   recorder.onstop = () => {
+    // Revoke old URL before creating new one (prevents memory leak)
+    if (recordedVideoUrl.value) {
+      URL.revokeObjectURL(recordedVideoUrl.value)
+    }
     const blob = new Blob(recordedChunks.value, { type: recorder.mimeType || 'video/webm' })
     recordedVideoUrl.value = URL.createObjectURL(blob)
     videoMode.value = 'preview'
-    // Stop camera stream
     stopCameraStream()
   }
 
@@ -1001,7 +1024,6 @@ const startRecording = () => {
   recorder.start(100)
   videoMode.value = 'recording'
 
-  // Countdown
   videoCountdownInterval.value = setInterval(() => {
     videoCountdown.value--
     if (videoCountdown.value <= 0) {
@@ -1034,7 +1056,6 @@ const deleteVideo = () => {
   }
   recordedChunks.value = []
   videoMode.value = 'idle'
-  // Reopen camera
   openVideoModal()
 }
 
@@ -1045,6 +1066,9 @@ const closeVideoModal = () => {
     URL.revokeObjectURL(recordedVideoUrl.value)
     recordedVideoUrl.value = null
   }
+  // Clear video element refs
+  if (liveVideoRef.value) liveVideoRef.value.srcObject = null
+  if (playbackVideoRef.value) playbackVideoRef.value.src = ''
   recordedChunks.value = []
   videoMode.value = 'idle'
   showVideoModal.value = false
@@ -1228,6 +1252,13 @@ const fetchAllBookings = async () => {
     .select('*')
     .eq('room_id', route.params.id)
   if (data) allBookings.value = data
+}
+
+// Debounced version for realtime callbacks (avoids 30 simultaneous queries)
+let bookingsFetchTimeout = null
+const debouncedFetchAllBookings = () => {
+  clearTimeout(bookingsFetchTimeout)
+  bookingsFetchTimeout = setTimeout(() => fetchAllBookings(), 300)
 }
 
 const fetchMyBookings = async () => {
@@ -1939,14 +1970,19 @@ onMounted(async () => {
     .channel(`room-bookings-${roomId}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'workshop_bookings', filter: `room_id=eq.${roomId}` },
       () => {
-        fetchAllBookings()
+        debouncedFetchAllBookings()
       }
     )
     .subscribe()
 
   // Resync timer & config when tab becomes visible (handles screen off/on, tab switch, connection drops)
   handleVisibilityChange = () => {
-    if (document.visibilityState === 'visible') {
+    if (document.visibilityState === 'hidden') {
+      // Auto-stop video recording when screen goes off
+      if (videoMode.value === 'recording') {
+        stopRecording()
+      }
+    } else if (document.visibilityState === 'visible') {
       fetchRoomData()
       fetchAllBookings()
     }
@@ -2007,11 +2043,10 @@ onMounted(async () => {
      }
 
      // Check student still exists (handle reset/kick - realtime may miss DELETE)
-     // Only kick on confirmed "not found" (PGRST116), NOT on network errors
      if (studentInfo.value?.id) {
         try {
-           const { data: me, error } = await supabase.from('students').select('id').eq('id', studentInfo.value.id).single()
-           if (!me && error && error.code === 'PGRST116') {
+           const { data: me } = await supabase.from('students').select('id').eq('id', studentInfo.value.id).limit(1)
+           if (me && me.length === 0) {
               // Student definitively not found in DB
               if (sessionClosed.value) return
               sessionClosed.value = true
@@ -2019,7 +2054,7 @@ onMounted(async () => {
               showFeedback('Session fermée', "La session a été fermée par l'enseignant.", 'warning')
               setTimeout(() => leaveSession(true), 2000)
            }
-           // Network errors (no code) are silently ignored — next poll will retry
+           // If me is null/undefined → network error, silently retry next poll
         } catch (e) {
            console.warn('Session check network error, will retry:', e)
         }
