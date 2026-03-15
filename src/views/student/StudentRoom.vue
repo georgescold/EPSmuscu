@@ -715,7 +715,16 @@
 
 
     <!-- Timer FAB -->
-    <button 
+    <!-- Autoscopy Camera FAB -->
+    <button
+      @click="openVideoModal"
+      class="fixed bottom-[17rem] right-4 bg-white hover:bg-gray-50 text-blue-600 w-14 h-14 md:w-16 md:h-16 rounded-full shadow-2xl shadow-blue-900/20 transition-all hover:scale-110 active:scale-95 z-40 flex items-center justify-center border-4 border-white overflow-hidden ring-1 ring-blue-100"
+      title="Filmer (autoscopie)"
+    >
+      <Video :size="28" :stroke-width="2" />
+    </button>
+
+    <button
       @click="showTimerModal = true"
       class="fixed bottom-48 right-4 bg-white hover:bg-gray-50 text-emerald-600 w-14 h-14 md:w-16 md:h-16 rounded-full shadow-2xl shadow-emerald-900/20 transition-all hover:scale-110 active:scale-95 z-40 flex items-center justify-center border-4 border-white overflow-hidden ring-1 ring-emerald-100"
       title="Chronomètre"
@@ -789,6 +798,71 @@
     </div>
 
 
+    <!-- Autoscopy Video Modal -->
+    <div v-if="showVideoModal" class="fixed inset-0 z-[65] bg-black flex flex-col">
+       <!-- Header -->
+       <div class="flex items-center justify-between p-4 bg-black/80 z-10">
+          <h3 class="text-white font-bold text-lg">Autoscopie</h3>
+          <button @click="closeVideoModal" class="text-white/80 hover:text-white p-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
+             <X :size="24" />
+          </button>
+       </div>
+
+       <!-- Live camera view (idle + recording) -->
+       <div v-if="videoMode === 'idle' || videoMode === 'recording'" class="flex-1 flex flex-col items-center justify-center relative">
+          <video ref="liveVideoRef" autoplay playsinline muted class="w-full h-full object-cover"></video>
+
+          <!-- Recording countdown overlay -->
+          <div v-if="videoMode === 'recording'" class="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full font-bold text-lg flex items-center space-x-2 shadow-lg animate-pulse">
+             <div class="w-3 h-3 bg-white rounded-full"></div>
+             <span>{{ videoCountdown }}s</span>
+          </div>
+       </div>
+
+       <!-- Preview playback -->
+       <div v-if="videoMode === 'preview'" class="flex-1 flex flex-col items-center justify-center bg-black">
+          <video ref="playbackVideoRef" :src="recordedVideoUrl" controls playsinline class="w-full h-full object-contain"></video>
+       </div>
+
+       <!-- Controls -->
+       <div class="p-6 bg-black/80 flex items-center justify-center space-x-6">
+          <!-- Idle: Start recording button -->
+          <template v-if="videoMode === 'idle'">
+             <button @click="startRecording"
+                     class="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-lg shadow-red-600/30 transition-all active:scale-90 ring-4 ring-red-600/30">
+                <Video :size="32" />
+             </button>
+             <p class="text-white/60 text-sm absolute bottom-2 left-1/2 -translate-x-1/2">30 sec. max</p>
+          </template>
+
+          <!-- Recording: Stop button -->
+          <template v-if="videoMode === 'recording'">
+             <button @click="stopRecording"
+                     class="w-20 h-20 rounded-full bg-white hover:bg-gray-100 text-red-600 flex items-center justify-center shadow-lg transition-all active:scale-90 ring-4 ring-white/30">
+                <Square :size="32" class="fill-current" />
+             </button>
+          </template>
+
+          <!-- Preview: Re-record + Delete -->
+          <template v-if="videoMode === 'preview'">
+             <button @click="deleteVideo"
+                     class="flex flex-col items-center space-y-1 text-white/80 hover:text-white transition-colors">
+                <div class="w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center shadow-lg transition-all active:scale-90">
+                   <RotateCw :size="24" />
+                </div>
+                <span class="text-xs font-medium">Refaire</span>
+             </button>
+             <button @click="closeVideoModal"
+                     class="flex flex-col items-center space-y-1 text-white/80 hover:text-white transition-colors">
+                <div class="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center shadow-lg transition-all active:scale-90">
+                   <Trash2 :size="24" />
+                </div>
+                <span class="text-xs font-medium">Supprimer</span>
+             </button>
+          </template>
+       </div>
+    </div>
+
     <!-- Feedback Modal (Replaces Alert) -->
     <div v-if="feedbackState.isVisible" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl transform transition-all scale-100 animate-in zoom-in-95 duration-200">
@@ -829,7 +903,7 @@ import { supabase } from '../../supabase'
 import { calculateTimerState, TIMER_COLORS, playTimerSound, unlockAudio } from '../../utils/timer'
 import { useStudentStore } from '../../stores/student'
 import { MUSCLE_LIST } from '../../constants/muscles'
-import { User, Timer, Trophy, Loader2, CheckCircle2, LogOut, RotateCcw, Play, Pause, Info, X, ChevronDown, Target, ClipboardList, Shield, Clock, Wind, AlertTriangle, Dumbbell, ArrowLeft } from 'lucide-vue-next'
+import { User, Timer, Trophy, Loader2, CheckCircle2, LogOut, RotateCcw, Play, Pause, Info, X, ChevronDown, Target, ClipboardList, Shield, Clock, Wind, AlertTriangle, Dumbbell, ArrowLeft, Video, Square, Trash2, RotateCw } from 'lucide-vue-next'
 import CounterInput from '../../components/CounterInput.vue'
 
 const route = useRoute()
@@ -860,6 +934,121 @@ const currentScore = ref(0)
 const showTimerModal = ref(false)
 const showMuscleSheet = ref(false)
 const openDropdown = ref(null)
+
+// Autoscopy video state
+const showVideoModal = ref(false)
+const videoMode = ref('idle') // 'idle' | 'recording' | 'preview'
+const videoStream = ref(null)
+const mediaRecorder = ref(null)
+const recordedChunks = ref([])
+const recordedVideoUrl = ref(null)
+const videoCountdown = ref(30)
+const videoCountdownInterval = ref(null)
+const liveVideoRef = ref(null)
+const playbackVideoRef = ref(null)
+
+const openVideoModal = async () => {
+  showVideoModal.value = true
+  videoMode.value = 'idle'
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    })
+    videoStream.value = stream
+    // Wait for DOM to render the video element
+    await new Promise(r => setTimeout(r, 50))
+    if (liveVideoRef.value) {
+      liveVideoRef.value.srcObject = stream
+    }
+  } catch (e) {
+    console.error('Camera access error:', e)
+    showFeedback('Erreur caméra', "Impossible d'accéder à la caméra. Vérifiez les permissions.", 'warning')
+    closeVideoModal()
+  }
+}
+
+const startRecording = () => {
+  if (!videoStream.value) return
+  recordedChunks.value = []
+  videoCountdown.value = 30
+
+  const options = { mimeType: 'video/webm;codecs=vp8' }
+  // Fallback if webm not supported (Safari)
+  let recorder
+  try {
+    recorder = new MediaRecorder(videoStream.value, options)
+  } catch (e) {
+    try {
+      recorder = new MediaRecorder(videoStream.value, { mimeType: 'video/mp4' })
+    } catch (e2) {
+      recorder = new MediaRecorder(videoStream.value)
+    }
+  }
+
+  recorder.ondataavailable = (e) => {
+    if (e.data.size > 0) recordedChunks.value.push(e.data)
+  }
+  recorder.onstop = () => {
+    const blob = new Blob(recordedChunks.value, { type: recorder.mimeType || 'video/webm' })
+    recordedVideoUrl.value = URL.createObjectURL(blob)
+    videoMode.value = 'preview'
+    // Stop camera stream
+    stopCameraStream()
+  }
+
+  mediaRecorder.value = recorder
+  recorder.start(100)
+  videoMode.value = 'recording'
+
+  // Countdown
+  videoCountdownInterval.value = setInterval(() => {
+    videoCountdown.value--
+    if (videoCountdown.value <= 0) {
+      stopRecording()
+    }
+  }, 1000)
+}
+
+const stopRecording = () => {
+  if (videoCountdownInterval.value) {
+    clearInterval(videoCountdownInterval.value)
+    videoCountdownInterval.value = null
+  }
+  if (mediaRecorder.value && mediaRecorder.value.state !== 'inactive') {
+    mediaRecorder.value.stop()
+  }
+}
+
+const stopCameraStream = () => {
+  if (videoStream.value) {
+    videoStream.value.getTracks().forEach(t => t.stop())
+    videoStream.value = null
+  }
+}
+
+const deleteVideo = () => {
+  if (recordedVideoUrl.value) {
+    URL.revokeObjectURL(recordedVideoUrl.value)
+    recordedVideoUrl.value = null
+  }
+  recordedChunks.value = []
+  videoMode.value = 'idle'
+  // Reopen camera
+  openVideoModal()
+}
+
+const closeVideoModal = () => {
+  stopRecording()
+  stopCameraStream()
+  if (recordedVideoUrl.value) {
+    URL.revokeObjectURL(recordedVideoUrl.value)
+    recordedVideoUrl.value = null
+  }
+  recordedChunks.value = []
+  videoMode.value = 'idle'
+  showVideoModal.value = false
+}
 const storedTab = localStorage.getItem(`student_tab_${route.params.id}`)
 const activeTab = ref(storedTab || 'workshops')
 
@@ -1850,5 +2039,7 @@ onBeforeUnmount(() => {
   if (handleVisibilityChange) {
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   }
+  // Cleanup video resources
+  closeVideoModal()
 })
 </script>
