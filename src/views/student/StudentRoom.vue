@@ -1595,12 +1595,42 @@ const leaveSession = (skipConfirm = false) => {
 
 
 
+// Compute how many workshop_change phases have completed based on elapsed time
+const computeWorkshopChangeCount = (config, status) => {
+   if (!config?.phases || config.phases.length === 0) return 0
+
+   const calc = calculateTimerState(config, status)
+   const elapsed = calc.elapsed || 0
+   if (elapsed <= 0) return 0
+
+   const repeats = config.repeats || 1
+   let timeCursor = 0
+   let changeCount = 0
+
+   for (let r = 0; r < repeats; r++) {
+      for (const p of config.phases) {
+         const durMs = (Number(p.duration) || 0) * 1000
+         timeCursor += durMs
+         if (elapsed >= timeCursor && p.action === 'workshop_change') {
+            changeCount++
+         }
+      }
+   }
+   return changeCount
+}
+
 const syncTimer = (room) => {
    if (!room) return
    if (room.timer_config) timerConfig.value = room.timer_config
    if (room.timer_status) {
       timerState.value = room.timer_status
       localTimerCalc.value = calculateTimerState(timerConfig.value, timerState.value)
+
+      // Resync workshop index from elapsed time (catches missed transitions during phone sleep)
+      const correctIndex = computeWorkshopChangeCount(timerConfig.value, timerState.value)
+      if (currentWorkshopIndex.value !== correctIndex) {
+         currentWorkshopIndex.value = correctIndex
+      }
    }
 }
 
@@ -1788,14 +1818,21 @@ onMounted(async () => {
      }
 
      // Check student still exists (handle reset/kick - realtime may miss DELETE)
+     // Only kick on confirmed "not found" (PGRST116), NOT on network errors
      if (studentInfo.value?.id) {
-        const { data: me, error } = await supabase.from('students').select('id').eq('id', studentInfo.value.id).single()
-        if (error || !me) {
-           if (sessionClosed.value) return
-           sessionClosed.value = true
-           clearInterval(syncPollingInterval)
-           showFeedback('Session fermée', "La session a été fermée par l'enseignant.", 'warning')
-           setTimeout(() => leaveSession(true), 2000)
+        try {
+           const { data: me, error } = await supabase.from('students').select('id').eq('id', studentInfo.value.id).single()
+           if (!me && error && error.code === 'PGRST116') {
+              // Student definitively not found in DB
+              if (sessionClosed.value) return
+              sessionClosed.value = true
+              clearInterval(syncPollingInterval)
+              showFeedback('Session fermée', "La session a été fermée par l'enseignant.", 'warning')
+              setTimeout(() => leaveSession(true), 2000)
+           }
+           // Network errors (no code) are silently ignored — next poll will retry
+        } catch (e) {
+           console.warn('Session check network error, will retry:', e)
         }
      }
   }, 10000) // 10s backup - ensures timer sync even if WebSocket drops
