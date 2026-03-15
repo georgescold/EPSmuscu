@@ -692,7 +692,7 @@
     </main>
     
     <!-- Bottom Navigation -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-50 flex justify-around items-center h-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-30 flex justify-around items-center h-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       <button 
         @click="activeTab = 'workshops'"
         class="flex flex-col items-center justify-center w-full h-full space-y-1.5 transition-colors duration-200"
@@ -947,6 +947,7 @@ const videoCountdown = ref(30)
 const videoCountdownInterval = ref(null)
 const liveVideoRef = ref(null)
 const playbackVideoRef = ref(null)
+let videoCountdownStartTime = 0
 
 const openVideoModal = async () => {
   showVideoModal.value = true
@@ -1003,7 +1004,13 @@ const startRecording = () => {
     try {
       recorder = new MediaRecorder(videoStream.value, { mimeType: 'video/mp4' })
     } catch (e2) {
-      recorder = new MediaRecorder(videoStream.value)
+      try {
+        recorder = new MediaRecorder(videoStream.value)
+      } catch (e3) {
+        showFeedback('Erreur', "Votre navigateur ne supporte pas l'enregistrement vidéo.", 'warning')
+        videoMode.value = 'idle'
+        return
+      }
     }
   }
 
@@ -1011,22 +1018,31 @@ const startRecording = () => {
     if (e.data.size > 0) recordedChunks.value.push(e.data)
   }
   recorder.onstop = () => {
-    // Revoke old URL before creating new one (prevents memory leak)
     if (recordedVideoUrl.value) {
       URL.revokeObjectURL(recordedVideoUrl.value)
     }
-    const blob = new Blob(recordedChunks.value, { type: recorder.mimeType || 'video/webm' })
-    recordedVideoUrl.value = URL.createObjectURL(blob)
-    videoMode.value = 'preview'
+    try {
+      const blob = new Blob(recordedChunks.value, { type: recorder.mimeType || 'video/webm' })
+      recordedVideoUrl.value = URL.createObjectURL(blob)
+      videoMode.value = 'preview'
+    } catch (e) {
+      console.error('Error creating video blob:', e)
+      showFeedback('Erreur', "Impossible de créer la vidéo. Mémoire insuffisante ?", 'warning')
+      recordedChunks.value = []
+      videoMode.value = 'idle'
+    }
     stopCameraStream()
   }
 
   mediaRecorder.value = recorder
   recorder.start(100)
   videoMode.value = 'recording'
+  videoCountdownStartTime = Date.now()
 
   videoCountdownInterval.value = setInterval(() => {
-    videoCountdown.value--
+    // Use real elapsed time (resilient to phone sleep)
+    const elapsed = Math.floor((Date.now() - videoCountdownStartTime) / 1000)
+    videoCountdown.value = Math.max(0, 30 - elapsed)
     if (videoCountdown.value <= 0) {
       stopRecording()
     }
@@ -1071,6 +1087,7 @@ const closeVideoModal = () => {
   if (liveVideoRef.value) liveVideoRef.value.srcObject = null
   if (playbackVideoRef.value) playbackVideoRef.value.src = ''
   recordedChunks.value = []
+  mediaRecorder.value = null
   videoMode.value = 'idle'
   showVideoModal.value = false
 }
@@ -1337,7 +1354,7 @@ const orderedWorkshops = computed(() => {
   if (!startWorkshopId.value || workshops.value.length === 0) return []
 
   const startIdx = workshops.value.findIndex(w => w.id === startWorkshopId.value)
-  if (startIdx === -1) return workshops.value
+  if (startIdx === -1) return []
 
   const ordered = [
     ...workshops.value.slice(startIdx),
@@ -1986,6 +2003,15 @@ onMounted(async () => {
     } else if (document.visibilityState === 'visible') {
       fetchRoomData()
       fetchAllBookings()
+      // Force immediate timer resync to catch missed workshop changes
+      if (timerConfig.value?.phases?.length > 0 && timerState.value) {
+        const calc = calculateTimerState(timerConfig.value, timerState.value)
+        localTimerCalc.value = calc
+        const correctIndex = computeWorkshopChangeCount(timerConfig.value, timerState.value)
+        if (currentWorkshopIndex.value !== correctIndex) {
+          currentWorkshopIndex.value = correctIndex
+        }
+      }
     }
   }
   document.addEventListener('visibilitychange', handleVisibilityChange)
